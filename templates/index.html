@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BridgePulse</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<script src="{{ url_for('static', filename='vendor/socket.io.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/qrcode.min.js') }}"></script>
+</head>
+<body class="mode-square">
+
+<div class="topbar">
+  <div class="topbar-logo">
+    <div class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12 6 12 9 5 13 19 16 12 22 12"/></svg></div>
+    <span class="logo-text">BridgePulse</span>
+  </div>
+  <div class="input-mode-toggle">
+    <button class="mode-btn active" id="squareModeBtn" onclick="switchMode('square')" title="Square">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <span class="lbl">Square</span>
+    </button>
+    <button class="mode-btn" id="voiceModeBtn" onclick="switchMode('voice')" title="Chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="lbl">Chat</span>
+    </button>
+    <button class="mode-btn" id="townhallModeBtn" onclick="switchMode('townhall')" title="Town Hall">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M9 21v-6h6v6"/></svg>
+      <span class="lbl">Town Hall</span><span class="live-dot" id="liveDot"></span>
+    </button>
+  </div>
+  <div class="topbar-spacer"></div>
+  <div class="lang-switch" title="Read posts in">
+    <button id="langDe" onclick="setLanguage('de')">DE</button>
+    <button id="langEn" onclick="setLanguage('en')">EN</button>
+  </div>
+  <div class="topbar-actions">
+    <button class="topbar-icon-btn" title="Notifications" onclick="togglePanel('notif')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-badge" id="notifBadge"></span></button>
+    <button class="topbar-icon-btn" title="Settings" onclick="togglePanel('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+  </div>
+  <a href="/logout" class="user-info" title="Sign out">
+    <div class="avatar user-avatar-small" style="background:{{ user.color }}">{{ user.get_initials() }}</div>
+    <div class="user-text">
+      <span class="user-name-top">{{ user.public_name }}</span>
+      <span class="user-handle-top">@{{ user.alias|lower|replace('-', '') }} · sign out</span>
+    </div>
+  </a>
+</div>
+
+<div class="dropdown-overlay" id="dropdownOverlay" onclick="closeAllPanels()"></div>
+<div class="dropdown-panel" id="notifPanel">
+  <div class="dropdown-header">Notifications <button class="dropdown-close" onclick="closeAllPanels()">&times;</button></div>
+  <div class="dropdown-body" id="notifBody"></div>
+</div>
+<div class="dropdown-panel settings-panel" id="settingsPanel">
+  <div class="dropdown-header">Settings <button class="dropdown-close" onclick="closeAllPanels()">&times;</button></div>
+  <div class="dropdown-body" id="settingsBody"></div>
+</div>
+
+<div class="main-layout">
+
+  <div class="sidebar-left">
+    <div class="left-section active" id="leftSquare">
+      <div class="left-scroll">
+        <div class="side-card">
+          <h4>Upcoming Town Hall</h4>
+          <div class="th-mini-title" id="thMiniTitle">&nbsp;</div>
+          <div class="th-mini-when" id="thMiniWhen">&nbsp;</div>
+          <span class="phase-pill" id="thMiniPhase">Before</span>
+        </div>
+        <div class="side-card" style="padding:10px;">
+          <h4 style="padding:4px 6px 0;">Concern themes</h4>
+          <div class="theme-filter" id="themeFilter"></div>
+        </div>
+        <div class="side-card qr-card">
+          <h4>Invite coworkers</h4>
+          <div class="qr-box" id="qrBox"></div>
+          <div class="qr-note">Scan with any phone camera — no app, no e-mail, no name.</div>
+          <div class="qr-url" id="qrUrl"></div>
+        </div>
+      </div>
+    </div>
+    <div class="left-section" id="leftVoice">
+      <div class="sidebar-search">
+        <div class="search-wrapper">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" class="search-box" placeholder="Search chats &amp; rooms..." oninput="filterContacts(this.value)">
+        </div>
+      </div>
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab active" onclick="switchTab(this,'all')">All</button>
+        <button class="sidebar-tab" onclick="switchTab(this,'chats')">Chats</button>
+        <button class="sidebar-tab" onclick="switchTab(this,'groups')">Rooms</button>
+      </div>
+      <div class="contact-list" id="chatsList"></div>
+      <button class="new-group-btn" onclick="createGroup()">+ New breakout room</button>
+    </div>
+  </div>
+
+  <div class="center-panel">
+
+    <div class="mode-panel active" id="squarePanel">
+      <div class="feed-scroll" id="feedScroll">
+        <div class="feed-col">
+          <div class="feed-head">
+            <div class="feed-title">Square <small>the whole company, anonymously</small></div>
+            <div class="chip-row" id="chipRow"></div>
+            <div class="feed-tabs">
+              <button class="feed-tab active" id="tabLatest" onclick="setSort('latest')">Latest</button>
+              <button class="feed-tab" id="tabTop" onclick="setSort('top')">Top concerns</button>
+            </div>
+          </div>
+
+          <div class="composer">
+            <div class="avatar composer-avatar" style="background:{{ user.color }}">{{ user.get_initials() }}</div>
+            <div class="composer-main">
+              <div class="composer-as">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Posting as <b>&nbsp;{{ user.public_name }}</b>{% if not user.is_organizer %}&nbsp;· your name is never shown{% endif %}
+              </div>
+              <textarea id="composerInput" rows="2" placeholder="{% if user.is_organizer %}Share an update with the plant…{% else %}What's on your mind? Deutsch or English is fine…{% endif %}" oninput="onComposerInput(this)"></textarea>
+              <div class="composer-preview" id="composerPreview"></div>
+              <div class="media-preview" id="mediaPreview"></div>
+              <div class="composer-bar">
+                <input type="file" id="mediaInput" accept="image/*,video/*" capture="environment" style="display:none" onchange="onMediaPicked(this)">
+                <button class="icon-btn" title="Add photo or video" onclick="document.getElementById('mediaInput').click()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </button>
+                <select class="mini-select" id="themeSelect" title="Theme"><option value="">Theme: auto-detect</option></select>
+                <select class="mini-select" id="zoneSelect" title="Where in the plant?">
+                  <option value="">Location (optional)</option>
+                  {% for z in zones %}<option>{{ z }}</option>{% endfor %}
+                </select>
+                {% if user.is_organizer %}
+                <label class="broadcast-check"><input type="checkbox" id="broadcastCheck"> 📌 Company broadcast</label>
+                {% endif %}
+                <button class="btn-primary" id="postBtn" onclick="submitPost()">Post</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="broadcastList"></div>
+          <div id="feedList"><div class="feed-empty">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mode-panel" id="voicePanel">
+      <div class="chat-header">
+        <button class="chat-action-btn back-btn" onclick="closeChatMobile()" title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <div class="avatar chat-header-avatar" id="chatAvatar" style="background:var(--brand)"></div>
+        <div class="chat-header-info">
+          <div class="chat-header-name" id="chatName">Select a chat or breakout room</div>
+          <div class="chat-header-status" id="chatStatus"></div>
+        </div>
+        <div class="chat-actions">
+          <button class="chat-action-btn" title="Voice call" onclick="startCall('voice')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.58 2.81.7A2 2 0 0 1 22 16.92z"/></svg></button>
+          <button class="chat-action-btn video-call" title="Video call" onclick="startCall('video')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></button>
+        </div>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="empty-chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <div><b>Talk or type — in German or English.</b><br>Pick a chat or breakout room on the left. Every message is translated for the other side.</div>
+        </div>
+      </div>
+      <div class="video-overlay" id="videoOverlay">
+        <div class="video-main">
+          <div class="video-placeholder-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            Connecting…
+          </div>
+          <div class="video-self">You</div>
+        </div>
+        <div class="video-controls">
+          <button class="vid-ctrl-btn" title="Mic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></button>
+          <button class="vid-ctrl-btn" title="Camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></button>
+          <button class="vid-ctrl-btn end-call" title="End call" onclick="endCall()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+      </div>
+      <div class="voice-input-area" id="voiceInputArea">
+        <div class="voice-row">
+          <div class="input-wrapper">
+            <textarea class="chat-input" id="chatInput" placeholder="Type, or tap the mic and speak…" rows="1" oninput="autoResize(this)" onkeydown="handleEnter(event)"></textarea>
+            <button class="input-send-btn" title="Send" onclick="sendMessage()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+          </div>
+          <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()" title="Speak"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+        </div>
+        <div class="voice-sub">
+          <div class="voice-waveform" id="voiceWaveform">
+            <div class="wave-bar" style="animation-delay:0s"></div><div class="wave-bar" style="animation-delay:.1s"></div><div class="wave-bar" style="animation-delay:.2s"></div><div class="wave-bar" style="animation-delay:.3s"></div><div class="wave-bar" style="animation-delay:.15s"></div>
+          </div>
+          <span id="voiceStatus">Mic speaks</span>
+          <select class="mini-select" id="speechLang"><option value="de-DE">Deutsch</option><option value="en-US">English</option></select>
+          <span style="margin-left:auto">Messages are translated DE ⇄ EN</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mode-panel" id="townhallPanel">
+      <div class="th-scroll">
+        <div class="th-wrap">
+          <div class="th-hero">
+            <div>
+              <div class="th-hero-title" id="thTitle">Town Hall</div>
+              <div class="th-hero-sub" id="thSub"></div>
+            </div>
+            <div class="stepper" id="stepper"></div>
+            {% if user.is_organizer %}
+            <div class="org-bar">
+              <b>Product Team controls</b>
+              <button class="btn-ghost" onclick="setPhase('before')">Before</button>
+              <button class="btn-ghost" onclick="setPhase('live')">● Go live</button>
+              <button class="btn-ghost" onclick="setPhase('after')">End &amp; open survey</button>
+              <span style="margin-left:auto">Participants only ever appear as groups.</span>
+            </div>
+            {% endif %}
+          </div>
+
+          <div class="th-card full">
+            <div class="th-card-head">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/></svg>
+              <h3>Live captions</h3><span class="sub">speech → text → German ⇄ English, for everyone</span>
+            </div>
+            <div class="captions" id="captions"><div class="cap-empty">Captions appear here when someone speaks.</div></div>
+            <div class="cap-controls">
+              <button class="mic-btn" id="capMicBtn" onclick="toggleCaptions()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg><span id="capMicLabel">Speak</span></button>
+              <select class="mini-select" id="capLang"><option value="de-DE">Deutsch</option><option value="en-US">English</option></select>
+              <input id="capInput" placeholder="…or type a question / caption and press Enter" onkeydown="if(event.key==='Enter'){sendCaption(this.value,true);this.value='';}">
+            </div>
+          </div>
+
+          <div class="th-grid">
+            <div class="th-card">
+              <div class="th-card-head">
+                <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <h3>Biggest impact first</h3><span class="sub">from the Square, role-weighted</span>
+              </div>
+              <div id="concernList"></div>
+              <div class="legend" id="roleLegend"></div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:16px;min-width:0;">
+              <div class="th-card">
+                <div class="th-card-head">
+                  <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                  <h3>Live poll</h3>
+                  <div class="right">
+                    {% if user.is_organizer %}<button class="btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="togglePollForm()">+ New poll</button>{% endif %}
+                  </div>
+                </div>
+                <div id="pollBox"></div>
+                {% if user.is_organizer %}
+                <div class="poll-form" id="pollForm">
+                  <input class="field" id="pollQ" placeholder="Question">
+                  <textarea class="field" id="pollOpts" placeholder="One option per line"></textarea>
+                  <div style="display:flex;gap:8px;"><button class="btn-primary" onclick="createPoll()">Launch poll</button><button class="btn-ghost" onclick="closePoll()">Close current poll</button></div>
+                </div>
+                {% endif %}
+              </div>
+              <div class="th-card">
+                <div class="th-card-head">
+                  <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                  <h3>Comfort pulse</h3><span class="sub">How comfortable do you feel about the AMR rollout right now?</span>
+                </div>
+                <div class="faces" id="faces"></div>
+                <div class="pulse-row">
+                  <div class="pulse-big" id="pulseAvg">–<small> / 5</small></div>
+                  <div class="dist" id="pulseDist"></div>
+                </div>
+              </div>
+              <div class="th-card">
+                <div class="th-card-head"><h3>React live</h3><span class="sub">anonymous, instant</span></div>
+                <div class="reactions" id="reactions"></div>
+              </div>
+            </div>
+
+            <div class="th-card full">
+              <div class="th-card-head">
+                <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="11" y2="11"/></svg>
+                <h3>Action charter</h3><span class="sub">written live — everyone can agree or say "not yet"</span>
+                <div class="right">
+                  {% if user.is_organizer %}<button class="btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="toggleActionForm()">+ Add action</button>{% endif %}
+                  <button class="btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="downloadCharter()">Download</button>
+                </div>
+              </div>
+              <table class="charter-table">
+                <thead><tr><th style="width:150px">Theme</th><th>Action</th><th style="width:170px">Owner</th><th style="width:70px">Due</th><th style="width:100px">Status</th><th style="width:150px">Your view</th></tr></thead>
+                <tbody id="charterBody"></tbody>
+              </table>
+              {% if user.is_organizer %}
+              <div class="action-form" id="actionForm">
+                <select class="field" id="actTheme"></select>
+                <input class="field" id="actTitle" placeholder="What will be done?">
+                <input class="field" id="actOwner" placeholder="Owner">
+                <input class="field" id="actDue" placeholder="Due">
+                <button class="btn-primary" onclick="addAction()">Add</button>
+              </div>
+              {% endif %}
+            </div>
+
+            <div class="th-card full" id="surveyCard"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-right">
+    <div class="ai-header">
+      <div class="ai-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12 6 12 9 5 13 19 16 12 22 12"/></svg></div>
+      <div class="ai-header-text">
+        <h3 id="insTitle">Pulse Insights</h3>
+        <span id="insSub">Themes · translation · priorities</span>
+      </div>
+    </div>
+    <div class="ai-content" id="aiContent"></div>
+    <div class="ai-footer">Anonymous by design · role-weighted priorities · DE ⇄ EN</div>
+  </div>
+</div>
+
+<div class="call-modal" id="callModal">
+  <div class="call-modal-content">
+    <h3 id="callModalTitle">Incoming call</h3>
+    <p id="callModalText">Someone is calling…</p>
+    <div class="call-modal-btns">
+      <button class="call-accept" onclick="acceptCall()">Accept</button>
+      <button class="call-reject" onclick="rejectCall()">Decline</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+window.BOOT = {
+  me: {
+    id: {{ user.id }},
+    name: {{ user.public_name|tojson }},
+    initials: {{ user.get_initials()|tojson }},
+    color: {{ user.color|tojson }},
+    role: {{ user.role|tojson }},
+    language: {{ user.language|tojson }},
+    isOrganizer: {{ 'true' if user.is_organizer else 'false' }}
+  },
+  themes: {{ themes|tojson }},
+  roles: {{ roles|tojson }},
+  joinUrl: {{ join_url|tojson }},
+  llm: {{ 'true' if llm else 'false' }}
+};
+</script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

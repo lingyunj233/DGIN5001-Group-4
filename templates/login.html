@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BridgePulse · Join</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+<script src="{{ url_for('static', filename='vendor/qrcode.min.js') }}"></script>
+</head>
+<body>
+<div class="auth-wrap">
+  <form class="pane join" method="POST" action="/join">
+    <div class="logo">
+      <div class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12 6 12 9 5 13 19 16 12 22 12"/></svg></div>
+      BridgePulse
+    </div>
+    <p class="tagline">Your voice for the AMR rollout Town Hall.<br><span style="color:var(--muted)">Deine Stimme für das Town Hall zum AMR-Rollout.</span></p>
+
+    <h2>Join anonymously · Anonym beitreten</h2>
+    <p class="hint">Pick your group. No name, no e-mail, no app to install.</p>
+    <div class="roles">
+      {% for key in public_roles %}
+      <label class="role">
+        <input type="radio" name="role" value="{{ key }}" {% if loop.first %}checked{% endif %}>
+        <span class="tile"><b><i style="background:{{ roles[key].color }}"></i>{{ roles[key].label }}</b><small>{{ roles[key].label_de }}</small></span>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="langs">
+      <label><input type="radio" name="language" value="de" checked><span>Deutsch</span></label>
+      <label><input type="radio" name="language" value="en"><span>English</span></label>
+    </div>
+    <button type="submit" class="btn-primary">Join now · Jetzt beitreten</button>
+    <div class="privacy">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Only your group is ever shown. Management and the Product Team cannot see who wrote what. Photo location data is removed automatically.
+    </div>
+  </form>
+
+  <div class="pane">
+    <h2>Sign in</h2>
+    <p class="hint">For returning users and the Product Team.</p>
+    {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+    <form method="POST" action="/login">
+      <div class="form-group"><label>Username</label><input type="text" name="username" placeholder="Username" required></div>
+      <div class="form-group"><label>Password</label><input type="password" name="password" placeholder="Password" required></div>
+      <button type="submit" class="btn-primary">Sign in</button>
+    </form>
+    <div class="footer">Want to keep the same anonymous account? <a href="/register">Create one</a></div>
+    <div class="demo">
+      Demo accounts<br>
+      Organizer (Priya): <code>priya / priya123</code><br>
+      Line worker: <code>worker / test123</code> · Union: <code>union / test123</code><br>
+      Safety: <code>safety / test123</code> · Director: <code>director / test123</code>
+    </div>
+    <div class="qr">
+      <div class="qr-box" id="qr"></div>
+      <p>Scan to open this page on a phone on the same network.<br><code>{{ join_url }}</code></p>
+    </div>
+  </div>
+</div>
+<script>
+try { new QRCode(document.getElementById('qr'), { text: {{ join_url|tojson }}, width: 84, height: 84, colorDark: '#0B3C5D', colorLight: '#ffffff' }); } catch (e) {}
+</script>
+</body>
+</html>

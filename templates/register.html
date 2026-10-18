@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BridgePulse · Create account</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+</head>
+<body>
+<div class="auth-wrap single">
+  <div class="pane">
+    <div class="logo">
+      <div class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12 6 12 9 5 13 19 16 12 22 12"/></svg></div>
+      BridgePulse
+    </div>
+    <p class="tagline">Create an anonymous account so you can come back to your posts. Pick any username — it is never shown to anyone.</p>
+    {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+    <form method="POST" action="/register">
+      <div class="form-group"><label>Your group</label>
+        <select name="role">
+          {% for key in public_roles %}<option value="{{ key }}">{{ roles[key].label }} · {{ roles[key].label_de }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group"><label>Language / Sprache</label>
+        <select name="language"><option value="de">Deutsch</option><option value="en">English</option></select>
+      </div>
+      <div class="form-group"><label>Username (private)</label><input type="text" name="username" placeholder="e.g. a nickname" required></div>
+      <div class="form-group"><label>Password</label><input type="password" name="password" placeholder="Choose a password" required></div>
+      <button type="submit" class="btn-primary">Create account</button>
+    </form>
+    <div class="footer">Already have one? <a href="/login">Sign in</a></div>
+  </div>
+</div>
+</body>
+</html>
