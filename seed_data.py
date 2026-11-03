@@ -1,6 +1,10 @@
 import json
 import random
 
+from bp_engine import QUICK_TAGS
+
+QUICK_THEMES = {k: v['theme'] for k, v in QUICK_TAGS.items()}
+
 SEED_POSTS = [
     ('worker', 60 * 26, 'de',
      'Gestern ist ein AMR in Halle 4 fast mit einem Gabelstapler zusammengestoßen. Der Gang ist zu eng für beide. '
@@ -123,6 +127,67 @@ ROOMS = [
     ]),
 ]
 
+SEED_QUICK = [
+    ('anon_s1', 48, ['corridor_blocked'], 2, 'Hall 4 · Logistics / AMR lanes', None, None),
+    ('anon_s2', 41, ['corridor_blocked', 'near_miss'], 1, 'Hall 4 · Logistics / AMR lanes',
+     'Regal 12 ist schon wieder zu eng, ich musste dem Roboter ausweichen.',
+     'Rack 12 is too narrow again, I had to step out of the robot\'s way.'),
+    ('anon_s3', 36, ['pacing_hazard'], 2, 'Hall 3 · Final assembly', None, None),
+    ('anon_s5', 31, ['pacing_hazard', 'no_breaks'], 1, 'Hall 3 · Final assembly', None, None),
+    ('anon_s6', 26, ['cant_hear'], 2, 'Hall 3 · Final assembly', None, None),
+    ('anon_s7', 22, ['job_worry'], 1, None,
+     'Was passiert mit der Logistik-Schicht, wenn alle AMRs laufen?',
+     'What happens to the logistics shift once all the AMRs are running?'),
+    ('anon_s8', 18, ['near_miss'], 2, 'Hall 4 · Logistics / AMR lanes', None, None),
+    ('anon_s4', 14, ['need_training'], 3, None, None, None),
+    ('anon_s2', 11, ['camera_data'], 2, None, None, None),
+    ('anon_s1', 8, ['pacing_hazard'], 2, 'Hall 3 · Final assembly', None, None),
+    ('anon_s5', 5, ['corridor_blocked'], 2, 'Warehouse', None, None),
+    ('anon_s3', 3, ['estop_reach'], 1, 'Hall 3 · Final assembly', None, None),
+]
+
+QUICK_SUPPORT = {
+    0: ['anon_s4', 'anon_s6'],
+    1: ['anon_s1', 'anon_s3', 'anon_s7', 'safety'],
+    2: ['anon_s2', 'anon_s8'],
+    3: ['anon_s1', 'anon_s3', 'anon_s6'],
+    5: ['anon_s2', 'anon_s5', 'union'],
+    6: ['anon_s3'],
+    9: ['anon_s5'],
+}
+
+AGREEMENT_PARAMS = [
+    ('speed_cap', 'AMR speed cap during the trial', 'AMR-Tempolimit während des Tests', 'number', '50',
+     '% of rated speed', '% der Nenngeschwindigkeit', 20, 100, 10, None),
+    ('trial_days', 'Length of the trial', 'Dauer des Tests', 'number', '30', 'days', 'Tage', 10, 90, 5, None),
+    ('checkpoint_days', 'Joint review checkpoint every', 'Gemeinsame Überprüfung alle', 'number', '10',
+     'days', 'Tage', 5, 30, 5, None),
+    ('lanes', 'Dedicated AMR lanes marked in Hall 4 before restart',
+     'Eigene AMR-Fahrwege in Halle 4 vor dem Neustart markiert', 'choice', 'yes', '', '', None, None, None,
+     [{'v': 'yes', 'en': 'Yes', 'de': 'Ja'}, {'v': 'no', 'en': 'No', 'de': 'Nein'}]),
+    ('near_miss_pause', 'Any near miss pauses AMRs in that zone until reviewed',
+     'Jeder Beinahe-Unfall stoppt die AMRs in der Zone bis zur Prüfung', 'choice', 'yes', '', '', None, None, None,
+     [{'v': 'yes', 'en': 'Yes', 'de': 'Ja'}, {'v': 'no', 'en': 'No', 'de': 'Nein'}]),
+    ('data_list', 'Works council approves the AMR data list before the trial',
+     'Betriebsrat genehmigt die AMR-Datenliste vor dem Test', 'choice', 'yes', '', '', None, None, None,
+     [{'v': 'yes', 'en': 'Yes', 'de': 'Ja'}, {'v': 'no', 'en': 'No', 'de': 'Nein'}]),
+    ('reskilling', 'Reskilling plan presented to the works council by',
+     'Umschulungsplan dem Betriebsrat vorgelegt bis', 'choice', 'cp2', '', '', None, None, None,
+     [{'v': 'cp1', 'en': 'Checkpoint 1', 'de': 'Checkpoint 1'},
+      {'v': 'cp2', 'en': 'Checkpoint 2', 'de': 'Checkpoint 2'},
+      {'v': 'end', 'en': 'End of trial', 'de': 'Testende'}]),
+]
+
+def ensure_agreement_params(conn):
+    have = {r['key'] for r in conn.execute('SELECT key FROM agreement_params').fetchall()}
+    for i, (key, label, label_de, kind, value, unit, unit_de, lo, hi, step, options) in enumerate(AGREEMENT_PARAMS):
+        if key in have:
+            continue
+        conn.execute('INSERT INTO agreement_params (key, label, label_de, kind, value, unit, unit_de, min, max, step, '
+                     'options, sort) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+                     (key, label, label_de, kind, value, unit, unit_de, lo, hi, step,
+                      json.dumps(options) if options else None, i))
+
 ACTIONS = [
     ('safety', 'Mark dedicated AMR lanes in Hall 4 and cap AMR speed at 50% for a 2-week trial',
      'Safety team + AMR implementation lead', 'Nov 7', 'proposed'),
@@ -132,6 +197,8 @@ ACTIONS = [
 
 def seed_demo(get_db, create_user, translate_fields, now_str):
     conn = get_db()
+    ensure_agreement_params(conn)
+    conn.commit()
     if conn.execute('SELECT COUNT(*) c FROM users').fetchone()['c'] > 0:
         conn.execute("UPDATE users SET status = 'online' WHERE username = 'helper'")
         conn.execute("UPDATE users SET display_name = 'Priya · Senior Product Manager' WHERE username = 'priya'")
@@ -168,6 +235,18 @@ def seed_demo(get_db, create_user, translate_fields, now_str):
         for u in users:
             conn.execute('INSERT OR IGNORE INTO post_support (post_id, user_id, created_at) VALUES (?,?,?)',
                          (post_ids[idx], ids[u], now_str(30)))
+    quick_ids = []
+    for author, mins, tags, feeling, zone, text_de, text_en in SEED_QUICK:
+        cur = conn.execute('''INSERT INTO posts (author_id, content, lang, content_en, content_de, tr_engine, theme, zone,
+                              is_broadcast, created_at, tags, sentiment) VALUES (?,?,?,?,?,?,?,?,0,?,?,?)''',
+                           (ids[author], text_de or '', 'de', text_en or '', text_de or '', 'seed',
+                            QUICK_THEMES[tags[0]], zone, now_str(mins), json.dumps(tags), feeling))
+        quick_ids.append(cur.lastrowid)
+    for idx, users in QUICK_SUPPORT.items():
+        for u in users:
+            conn.execute('INSERT OR IGNORE INTO post_support (post_id, user_id, created_at) VALUES (?,?,?)',
+                         (quick_ids[idx], ids[u], now_str(2)))
+
     for idx, author, lang, orig, en, de in SEED_COMMENTS:
         conn.execute('INSERT INTO comments (post_id, author_id, content, lang, content_en, content_de, created_at) '
                      'VALUES (?,?,?,?,?,?,?)', (post_ids[idx], ids[author], orig, lang, en or orig, de or orig,

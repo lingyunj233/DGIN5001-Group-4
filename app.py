@@ -1,11 +1,14 @@
 import os
 import json
+import time
 import uuid
+import logging
 import socket as pysocket
 import sqlite3
 import hashlib
 import secrets
 import random
+from collections import deque
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, jsonify, abort
@@ -28,9 +31,11 @@ def _load_secret():
 
 app.secret_key = _load_secret()
 app.config['MAX_CONTENT_LENGTH'] = 40 * 1024 * 1024
-socketio = SocketIO(app, cors_allowed_origins="*")
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
+socketio = SocketIO(app, cors_allowed_origins="*", logger=False, engineio_logger=False)
 login_manager = LoginManager(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'join_page'
+login_manager.session_protection = None
 
 DB_PATH = os.path.join(BASE_DIR, 'bridgepulse.db')
 UPLOAD_DIR = os.path.join(BASE_DIR, 'static', 'uploads')
@@ -123,9 +128,36 @@ def init_db():
         CREATE TABLE IF NOT EXISTS survey (
             user_id INTEGER PRIMARY KEY, heard INTEGER, plan TEXT, comment TEXT, created_at TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS agreement_params (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT UNIQUE, label TEXT, label_de TEXT,
+            kind TEXT, value TEXT, unit TEXT, unit_de TEXT, min REAL, max REAL, step REAL,
+            options TEXT, sort INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS param_votes (
+            param_id INTEGER, user_id INTEGER, vote TEXT,
+            PRIMARY KEY (param_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS agreement_signatures (
+            role TEXT PRIMARY KEY, user_id INTEGER, handle TEXT, signed_at TIMESTAMP
+        );
     ''')
     conn.commit()
     conn.close()
+
+def migrate_db():
+    conn = get_db()
+    cols = {r['name'] for r in conn.execute('PRAGMA table_info(posts)').fetchall()}
+    for name, kind in (('tags', 'TEXT'), ('sentiment', 'INTEGER')):
+        if name not in cols:
+            conn.execute('ALTER TABLE posts ADD COLUMN %s %s' % (name, kind))
+    conn.commit()
+    conn.close()
+
+def minutes_since(ts):
+    try:
+        return (datetime.now() - datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')).total_seconds() / 60.0
+    except Exception:
+        return 1e9
 
 def now_str(delta_minutes=0):
     return (datetime.now() - timedelta(minutes=delta_minutes)).strftime('%Y-%m-%d %H:%M:%S')
@@ -242,6 +274,7 @@ def organizer_required(f):
 
 online_users = {}
 reaction_counts = {'agree': 0, 'unsure': 0, 'concern': 0, 'applause': 0}
+reaction_log = deque(maxlen=500)
 
 def lan_ip():
     s = pysocket.socket(pysocket.AF_INET, pysocket.SOCK_DGRAM)
@@ -256,8 +289,8 @@ def lan_ip():
 def join_url():
     host = request.host.split(':')[0]
     if host in ('localhost', '127.0.0.1'):
-        return 'http://%s:%d/login' % (lan_ip(), PORT)
-    return request.host_url.rstrip('/') + '/login'
+        return 'http://%s:%d/join' % (lan_ip(), PORT)
+    return request.host_url.rstrip('/') + '/join'
 
 def translate_fields(text):
     lang = bp.detect_language(text)
@@ -270,9 +303,13 @@ def translate_fields(text):
 @app.route('/')
 @login_required
 def index():
-    return render_template('index.html', user=current_user, zones=ZONES,
-                           themes={k: {'label': v['label'], 'color': v['color']} for k, v in bp.THEMES.items()},
-                           roles=bp.ROLES, join_url=join_url(), llm=bp.llm_available())
+    themes = {k: {'label': v['label'], 'label_de': v['label_de'], 'color': v['color']} for k, v in bp.THEMES.items()}
+    themes['other'] = {'label': bp.THEME_OTHER['label'], 'label_de': bp.THEME_OTHER['label_de'],
+                       'color': bp.THEME_OTHER['color']}
+    return render_template('index.html', user=current_user, zones=ZONES, themes=themes,
+                           roles=bp.ROLES, join_url=join_url(), llm=bp.llm_available(),
+                           quick_tags=bp.QUICK_TAGS, sentiments=bp.SENTIMENTS, agenda=bp.AGENDA,
+                           signer_roles=bp.SIGNER_ROLES)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -288,11 +325,14 @@ def login():
             login_user(User(row), remember=True)
             return redirect(url_for('index'))
         error = 'Invalid username or password'
-    return render_template('login.html', error=error, roles=bp.ROLES, public_roles=bp.PUBLIC_ROLES,
-                           join_url=join_url())
+    return render_template('login.html', error=error, join_url=join_url())
 
-@app.route('/join', methods=['POST'])
-def quick_join():
+@app.route('/join', methods=['GET', 'POST'])
+def join_page():
+    if request.method == 'GET':
+        if current_user.is_authenticated:
+            return redirect(url_for('index'))
+        return render_template('join.html', roles=bp.ROLES, public_roles=bp.PUBLIC_ROLES, icons=bp.ROLE_ICONS)
     role = request.form.get('role', 'line_worker')
     language = request.form.get('language', 'de')
     if role not in bp.PUBLIC_ROLES:
@@ -307,35 +347,15 @@ def quick_join():
     login_user(User(row), remember=True)
     return redirect(url_for('index'))
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register')
 def register():
-    error = None
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
-        role = request.form.get('role', 'line_worker')
-        language = request.form.get('language', 'de')
-        if not username or not password:
-            error = 'Username and password are required'
-        elif role not in bp.PUBLIC_ROLES:
-            error = 'Please choose your group'
-        else:
-            conn = get_db()
-            try:
-                create_user(conn, username, password, role, language)
-                conn.commit()
-                conn.close()
-                return redirect(url_for('login'))
-            except sqlite3.IntegrityError:
-                conn.close()
-                error = 'Username already exists'
-    return render_template('register.html', error=error, roles=bp.ROLES, public_roles=bp.PUBLIC_ROLES)
+    return redirect(url_for('join_page'))
 
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('login'))
+    return redirect(url_for('join_page'))
 
 @app.route('/api/me', methods=['GET', 'POST'])
 @login_required
@@ -353,14 +373,30 @@ def api_me():
                     'role_label': current_user.role_label, 'language': current_user.language,
                     'is_organizer': current_user.is_organizer})
 
-def serialize_post(conn, r, uid):
+def charter_locked():
+    return bool(get_state('agreement_locked_at'))
+
+def actions_by_theme(conn):
+    locked = charter_locked()
+    out = {}
+    for a in conn.execute('SELECT theme, title, status FROM actions ORDER BY id').fetchall():
+        out.setdefault(a['theme'], {'title': a['title'], 'status': 'signed' if locked else a['status']})
+    return out
+
+def serialize_post(conn, r, uid, theme_actions=None):
     supporters = conn.execute('''SELECT u.role FROM post_support s JOIN users u ON s.user_id = u.id
                                  WHERE s.post_id = ?''', (r['id'],)).fetchall()
     supporter_roles = [s['role'] for s in supporters]
     n_comments = conn.execute('SELECT COUNT(*) c FROM comments WHERE post_id = ?', (r['id'],)).fetchone()['c']
     mine = conn.execute('SELECT 1 FROM post_support WHERE post_id = ? AND user_id = ?', (r['id'], uid)).fetchone()
     t = bp.theme_meta(r['theme'])
+    try:
+        tags = [x for x in json.loads(r['tags'] or '[]') if x in bp.QUICK_TAGS]
+    except (TypeError, ValueError):
+        tags = []
     return {
+        'tags': tags, 'sentiment': r['sentiment'],
+        'action': (theme_actions or {}).get(r['theme']) if not r['is_broadcast'] else None,
         'id': r['id'],
         'author': person(r),
         'is_mine': r['author_id'] == uid,
@@ -384,6 +420,7 @@ def api_posts():
     sort = request.args.get('sort', 'latest')
     theme = request.args.get('theme', '')
     conn = get_db()
+    acts = actions_by_theme(conn)
     broadcasts = [serialize_post(conn, r, current_user.id) for r in
                   conn.execute(POST_SELECT + ' WHERE p.is_broadcast = 1 ORDER BY p.created_at DESC').fetchall()]
     q, args = POST_SELECT + ' WHERE p.is_broadcast = 0', []
@@ -391,7 +428,7 @@ def api_posts():
         q += ' AND p.theme = ?'
         args.append(theme)
     rows = conn.execute(q + ' ORDER BY p.created_at DESC LIMIT 200', args).fetchall()
-    posts = [serialize_post(conn, r, current_user.id) for r in rows]
+    posts = [serialize_post(conn, r, current_user.id, acts) for r in rows]
     conn.close()
     if sort == 'top':
         posts.sort(key=lambda p: p['score'], reverse=True)
@@ -403,20 +440,37 @@ def api_create_post():
     data = request.get_json() or {}
     content = (data.get('content') or '').strip()
     media_url = data.get('media_url') or None
-    if not content and not media_url:
-        return jsonify({'error': 'Write something or attach a photo/video'}), 400
+    tags = []
+    for t in data.get('tags') or []:
+        if t in bp.QUICK_TAGS and t not in tags:
+            tags.append(t)
+    tags = tags[:3]
+    try:
+        sentiment = int(data.get('sentiment')) if data.get('sentiment') not in (None, '') else None
+    except (TypeError, ValueError):
+        sentiment = None
+    if sentiment is not None and not 1 <= sentiment <= 5:
+        sentiment = None
+    if not content and not media_url and not tags:
+        return jsonify({'error': 'Pick a problem, speak, write something or add a photo'}), 400
     broadcast = 1 if (data.get('broadcast') and current_user.is_organizer) else 0
-    theme = data.get('theme') or bp.classify_theme(content)
+    theme = data.get('theme') or (bp.QUICK_TAGS[tags[0]]['theme'] if tags else bp.classify_theme(content))
     if theme not in bp.THEMES and theme != 'other':
         theme = 'other'
     if broadcast:
-        theme = 'other'
-    lang, en, de, engine = translate_fields(content) if content else ('en', '', '', 'none')
+        theme, tags, sentiment = 'other', [], None
+    if content:
+        lang, en, de, engine = translate_fields(content)
+    else:
+        lang, en, de, engine = current_user.language, '', '', 'none'
+    zone = data.get('zone') if data.get('zone') in ZONES else None
     conn = get_db()
     cur = conn.execute('''INSERT INTO posts (author_id, content, lang, content_en, content_de, tr_engine, theme, zone,
-                          media_url, media_type, is_broadcast, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''',
-                       (current_user.id, content, lang, en, de, engine, theme, data.get('zone') or None,
-                        media_url, data.get('media_type'), broadcast, now_str()))
+                          media_url, media_type, is_broadcast, created_at, tags, sentiment)
+                          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                       (current_user.id, content, lang, en, de, engine, theme, zone,
+                        media_url, data.get('media_type'), broadcast, now_str(),
+                        json.dumps(tags) if tags else None, sentiment))
     pid = cur.lastrowid
     conn.commit()
     conn.close()
@@ -455,7 +509,7 @@ def api_support(pid):
                      (pid, current_user.id, now_str()))
     conn.commit()
     r = conn.execute(POST_SELECT + ' WHERE p.id = ?', (pid,)).fetchone()
-    out = serialize_post(conn, r, current_user.id) if r else {}
+    out = serialize_post(conn, r, current_user.id, actions_by_theme(conn)) if r else {}
     conn.close()
     socketio.emit('post_updated', {'post_id': pid})
     return jsonify(out)
@@ -497,30 +551,52 @@ def api_upload():
     f.save(os.path.join(UPLOAD_DIR, name))
     return jsonify({'url': '/static/uploads/' + name, 'type': ALLOWED_MEDIA[ext]})
 
+def post_text_en(p):
+    return p['content_en'] or p['content'] or bp.tag_line(p['tags'], 'en')
+
 def compute_insights(conn):
     rows = conn.execute(POST_SELECT + ' WHERE p.is_broadcast = 0').fetchall()
     posts = [serialize_post(conn, r, -1) for r in rows]
     by_theme = {}
+    tag_totals = {}
     for p in posts:
         by_theme.setdefault(p['theme'], []).append(p)
+        for t in p['tags']:
+            tag_totals[t] = tag_totals.get(t, 0) + 1
     themes = []
     for key, plist in by_theme.items():
         plist.sort(key=lambda p: p['score'], reverse=True)
         meta = bp.theme_meta(key)
-        role_mix = {}
+        role_mix, tag_counts, feelings, recent = {}, {}, [], 0
         for p in plist:
             role_mix[p['author']['role']] = role_mix.get(p['author']['role'], 0) + 1
             for r in p['supporter_roles']:
                 role_mix[r] = role_mix.get(r, 0) + 1
+            for t in p['tags']:
+                tag_counts[t] = tag_counts.get(t, 0) + 1
+            if p['sentiment']:
+                feelings.append(p['sentiment'])
+            if minutes_since(p['created_at']) <= 15:
+                recent += 1
+        voices = sum(role_mix.values()) or 1
+        texted = [p for p in plist if p['content']]
+        quote_post = texted[0] if texted else plist[0]
         themes.append({
-            'key': key, 'label': meta['label'], 'color': meta['color'],
+            'key': key, 'label': meta['label'], 'label_de': meta.get('label_de', meta['label']), 'color': meta['color'],
             'score': round(sum(p['score'] for p in plist), 1),
             'posts': len(plist), 'support': sum(p['support'] for p in plist),
             'role_mix': role_mix,
+            'top_role': max(role_mix, key=role_mix.get),
+            'line_share': round(100 * role_mix.get('line_worker', 0) / voices),
+            'tag_counts': sorted(tag_counts.items(), key=lambda kv: kv[1], reverse=True),
+            'sentiment_avg': round(sum(feelings) / len(feelings), 1) if feelings else None,
+            'sentiment_n': len(feelings),
+            'recent': recent,
             'summary': bp.summarize_theme(key, [{'role': p['author']['role'],
                                                  'supporter_roles': p['supporter_roles']} for p in plist]),
-            'top_quote': (plist[0]['content_en'] or plist[0]['content'])[:180],
-            'top_post_id': plist[0]['id'],
+            'top_quote': post_text_en(quote_post)[:180],
+            'top_post_id': quote_post['id'],
+            '_texts': [post_text_en(p)[:300] for p in plist[:12]],
         })
     themes.sort(key=lambda t: t['score'], reverse=True)
     role_totals = {}
@@ -528,8 +604,12 @@ def compute_insights(conn):
         role_totals[r['role']] = r['c']
     de_share = round(100 * sum(1 for p in posts if p['lang'] == 'de') / max(1, len(posts)))
     return {'themes': themes, 'total_posts': len(posts), 'de_share': de_share,
+            'tag_totals': sorted(tag_totals.items(), key=lambda kv: kv[1], reverse=True),
             'participants': sum(v for k, v in role_totals.items() if k != 'organizer'),
             'role_totals': role_totals, 'llm': bp.llm_available(), 'tr_mode': bp.translation_mode()}
+
+def public_themes(themes):
+    return [{k: v for k, v in t.items() if not k.startswith('_')} for t in themes]
 
 @app.route('/api/insights')
 @login_required
@@ -537,6 +617,7 @@ def api_insights():
     conn = get_db()
     out = compute_insights(conn)
     conn.close()
+    out['themes'] = public_themes(out['themes'])
     return jsonify(out)
 
 @app.route('/api/translate', methods=['POST'])
@@ -701,15 +782,156 @@ def townhall_state(uid, is_org):
                               list(online_users.keys())).fetchall():
             online_roles[r['role']] = r['c']
     insights = compute_insights(conn)
+    agreement = agreement_state(conn, uid)
+    survey_n = conn.execute('SELECT COUNT(*) c FROM survey').fetchone()['c']
     conn.close()
-    return {
+    clock = clock_info(phase)
+    focus = focus_info() if phase == 'live' else None
+    recent_concern = sum(1 for ts, kind in reaction_log if kind == 'concern' and time.time() - ts <= 120)
+    out = {
         'phase': phase, 'title': get_state('title', ''), 'when': get_state('when', ''),
         'poll': poll_out,
         'pulse': {'avg': avg, 'dist': dist, 'n': sum(dist), 'mine': my_pulse['value'] if my_pulse else None},
         'reactions': reaction_counts, 'actions': actions, 'survey': survey_out,
         'online': len(online_users), 'online_roles': online_roles,
-        'top_concerns': insights['themes'][:5],
+        'top_concerns': public_themes(insights['themes']),
+        'clock': clock, 'focus': focus, 'agreement': agreement,
+        'charter_locked': agreement['locked'],
     }
+    if is_org:
+        cards = build_cards(insights['themes'], actions, focus)
+        out['cards'] = cards
+        out['prompts'] = bp.session_prompts({
+            'phase': phase, 'cards': cards, 'total_posts': insights['total_posts'], 'survey_n': survey_n,
+            'elapsed': clock['elapsed'], 'remaining': clock['remaining'], 'segment': clock['segment'],
+            'focus': focus, 'agreement_open': agreement['open'], 'agreement_locked': agreement['locked'],
+            'missing_signers': [s['label'] for s in agreement['signers'] if not s['signed']],
+            'pulse_n': sum(dist), 'pulse_avg': avg, 'recent_concern': recent_concern,
+        })
+    return out
+
+def clock_info(phase):
+    started = get_state('live_started_at')
+    ended = get_state('live_ended_at')
+    started = float(started) if started else None
+    ended = float(ended) if ended else None
+    now = time.time()
+    if not started or phase == 'before':
+        elapsed = 0.0
+    else:
+        elapsed = ((ended if phase == 'after' and ended else now) - started) / 60.0
+    return {'started': started if phase != 'before' else None, 'ended': ended, 'server_now': now,
+            'elapsed': round(elapsed, 2), 'remaining': round(max(0.0, bp.SESSION_MINUTES - elapsed), 2),
+            'segment': bp.agenda_segment(elapsed) if started and phase == 'live' else None,
+            'duration': bp.SESSION_MINUTES}
+
+def focus_info():
+    key = get_state('focus_theme') or ''
+    if not key:
+        return None
+    since = float(get_state('focus_started_at') or time.time())
+    meta = bp.theme_meta(key)
+    return {'key': key, 'label': meta['label'], 'label_de': meta.get('label_de', meta['label']),
+            'color': meta['color'], 'started': since, 'minutes': round((time.time() - since) / 60.0, 1)}
+
+def build_cards(themes, actions, focus):
+    cards = []
+    for t in themes[:3]:
+        summary = bp.cluster_summary(t['label'], t['_texts'])
+        card = {k: v for k, v in t.items() if not k.startswith('_')}
+        card.update({
+            'summary_text': summary or bp.auto_summary(t),
+            'summary_engine': 'llm' if summary else 'auto',
+            'actions': [a for a in actions if a['theme'] == t['key']][:2],
+            'is_focus': bool(focus and focus['key'] == t['key']),
+        })
+        card['prompts'] = bp.card_prompts(card)
+        cards.append(card)
+    return cards
+
+def param_display(p, lang):
+    if p['kind'] == 'number':
+        unit = p['unit_de'] if lang == 'de' else p['unit']
+        return '%s %s' % (p['value'], unit)
+    for o in json.loads(p['options'] or '[]'):
+        if o['v'] == p['value']:
+            return o[lang]
+    return p['value']
+
+def agreement_state(conn, uid):
+    params = []
+    for p in conn.execute('SELECT * FROM agreement_params ORDER BY sort, id').fetchall():
+        votes = {v['vote']: v['c'] for v in conn.execute(
+            'SELECT vote, COUNT(*) c FROM param_votes WHERE param_id = ? GROUP BY vote', (p['id'],)).fetchall()}
+        mine = conn.execute('SELECT vote FROM param_votes WHERE param_id = ? AND user_id = ?', (p['id'], uid)).fetchone()
+        params.append({
+            'id': p['id'], 'key': p['key'], 'label': p['label'], 'label_de': p['label_de'], 'kind': p['kind'],
+            'value': p['value'], 'unit': p['unit'], 'unit_de': p['unit_de'],
+            'min': p['min'], 'max': p['max'], 'step': p['step'],
+            'options': json.loads(p['options'] or '[]'),
+            'display': param_display(p, 'en'), 'display_de': param_display(p, 'de'),
+            'ok': votes.get('ok', 0), 'not_yet': votes.get('not_yet', 0), 'my_vote': mine['vote'] if mine else None,
+        })
+    sigs = {r['role']: r for r in conn.execute('SELECT * FROM agreement_signatures').fetchall()}
+    locked_at = get_state('agreement_locked_at')
+    me = conn.execute('SELECT role FROM users WHERE id = ?', (uid,)).fetchone()
+    role = me['role'] if me else None
+    signers = []
+    for r in bp.SIGNER_ROLES:
+        s = sigs.get(r)
+        signers.append({'role': r, 'label': bp.SIGNER_LABELS[r][0], 'label_de': bp.SIGNER_LABELS[r][1],
+                        'signed': bool(s), 'handle': s['handle'] if s else None,
+                        'at': (s['signed_at'] or '')[11:16] if s else None,
+                        'mine': bool(s and s['user_id'] == uid)})
+    return {
+        'open': get_state('agreement_open') == '1', 'locked': bool(locked_at), 'locked_at': locked_at,
+        'hash': get_state('agreement_hash'), 'notice': get_state('agreement_notice') or '',
+        'params': params, 'signers': signers,
+        'can_sign': bool(role in bp.SIGNER_ROLES and role not in sigs and not locked_at),
+        'is_signer': role in bp.SIGNER_ROLES,
+    }
+
+def charter_snapshot(conn):
+    params = [{'label': p['label'], 'label_de': p['label_de'], 'value': param_display(p, 'en'),
+               'value_de': param_display(p, 'de')}
+              for p in conn.execute('SELECT * FROM agreement_params ORDER BY sort, id').fetchall()]
+    actions = []
+    for a in conn.execute('SELECT * FROM actions ORDER BY id').fetchall():
+        votes = {v['vote']: v['c'] for v in conn.execute(
+            'SELECT vote, COUNT(*) c FROM action_votes WHERE action_id = ? GROUP BY vote', (a['id'],)).fetchall()}
+        actions.append({'theme': bp.theme_meta(a['theme'])['label'], 'title': a['title'], 'owner': a['owner'],
+                        'due': a['due'], 'status': a['status'],
+                        'agree': votes.get('agree', 0), 'not_yet': votes.get('not_yet', 0)})
+    sigs = {r['role']: r for r in conn.execute('SELECT * FROM agreement_signatures').fetchall()}
+    signatures = [{'group': bp.SIGNER_LABELS[r][0], 'group_de': bp.SIGNER_LABELS[r][1],
+                   'handle': sigs[r]['handle'], 'signed_at': sigs[r]['signed_at']}
+                  for r in bp.SIGNER_ROLES if r in sigs]
+    return {'title': get_state('title', ''), 'when': get_state('when', ''),
+            'params': params, 'actions': actions, 'signatures': signatures}
+
+def lock_agreement():
+    conn = get_db()
+    conn.execute("UPDATE actions SET status = 'agreed' WHERE status = 'proposed'")
+    conn.commit()
+    snap = charter_snapshot(conn)
+    conn.close()
+    snap['locked_at'] = now_str()
+    canonical = json.dumps(snap, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+    set_state('agreement_snapshot', canonical)
+    set_state('agreement_hash', hashlib.sha256(canonical.encode('utf-8')).hexdigest())
+    set_state('agreement_locked_at', snap['locked_at'])
+
+def clear_signatures(reason):
+    conn = get_db()
+    n = conn.execute('SELECT COUNT(*) c FROM agreement_signatures').fetchone()['c']
+    conn.execute('DELETE FROM agreement_signatures')
+    conn.commit()
+    conn.close()
+    if n:
+        set_state('agreement_notice', reason)
+
+def locked_response():
+    return jsonify({'error': 'The charter is signed and locked.'}), 409
 
 def broadcast_th():
     socketio.emit('th_update', {})
@@ -725,9 +947,34 @@ def api_townhall():
 def api_phase():
     phase = (request.get_json() or {}).get('phase')
     if phase in ('before', 'live', 'after'):
+        current = get_state('phase', 'before')
+        if phase == 'live' and (current == 'before' or not get_state('live_started_at')):
+            set_state('live_started_at', str(time.time()))
+            set_state('live_ended_at', '')
+        if phase == 'live' and current == 'after':
+            set_state('live_ended_at', '')
+        if phase == 'after':
+            set_state('live_ended_at', str(time.time()))
+            set_state('focus_theme', '')
+        if phase == 'before':
+            set_state('live_started_at', '')
+            set_state('live_ended_at', '')
+            set_state('focus_theme', '')
         set_state('phase', phase)
         broadcast_th()
     return jsonify({'phase': get_state('phase')})
+
+@app.route('/api/townhall/focus', methods=['POST'])
+@login_required
+@organizer_required
+def api_focus():
+    theme = (request.get_json() or {}).get('theme') or ''
+    if theme and theme not in bp.THEMES and theme != 'other':
+        return jsonify({'error': 'Unknown theme'}), 400
+    set_state('focus_theme', theme)
+    set_state('focus_started_at', str(time.time()))
+    broadcast_th()
+    return jsonify({'ok': True})
 
 @app.route('/api/townhall/poll', methods=['POST'])
 @login_required
@@ -791,13 +1038,18 @@ def api_react():
     kind = (request.get_json() or {}).get('kind')
     if kind in reaction_counts:
         reaction_counts[kind] += 1
+        reaction_log.append((time.time(), kind))
         socketio.emit('reaction', {'kind': kind, 'counts': reaction_counts})
+        if kind == 'concern':
+            broadcast_th()
     return jsonify(reaction_counts)
 
 @app.route('/api/townhall/actions', methods=['POST'])
 @login_required
 @organizer_required
 def api_add_action():
+    if charter_locked():
+        return locked_response()
     data = request.get_json() or {}
     title = (data.get('title') or '').strip()
     if not title:
@@ -808,25 +1060,33 @@ def api_add_action():
                   (data.get('due') or '').strip(), 'proposed', now_str()))
     conn.commit()
     conn.close()
+    clear_signatures('charter_changed')
     broadcast_th()
+    socketio.emit('feed_changed', {})
     return jsonify({'ok': True})
 
 @app.route('/api/townhall/actions/<int:aid>/status', methods=['POST'])
 @login_required
 @organizer_required
 def api_action_status(aid):
+    if charter_locked():
+        return locked_response()
     status = (request.get_json() or {}).get('status')
     if status in ('proposed', 'agreed', 'unresolved'):
         conn = get_db()
         conn.execute('UPDATE actions SET status = ? WHERE id = ?', (status, aid))
         conn.commit()
         conn.close()
+        clear_signatures('charter_changed')
         broadcast_th()
+        socketio.emit('feed_changed', {})
     return jsonify({'ok': True})
 
 @app.route('/api/townhall/actions/<int:aid>/vote', methods=['POST'])
 @login_required
 def api_action_vote(aid):
+    if charter_locked():
+        return locked_response()
     vote = (request.get_json() or {}).get('vote')
     if vote in ('agree', 'not_yet'):
         conn = get_db()
@@ -851,6 +1111,109 @@ def api_survey():
     broadcast_th()
     return jsonify({'ok': True})
 
+@app.route('/api/agreement/open', methods=['POST'])
+@login_required
+@organizer_required
+def api_agreement_open():
+    if charter_locked():
+        return locked_response()
+    set_state('agreement_open', '1' if (request.get_json() or {}).get('open', True) else '0')
+    broadcast_th()
+    return jsonify({'ok': True})
+
+@app.route('/api/agreement/params/<int:pid>', methods=['POST'])
+@login_required
+@organizer_required
+def api_agreement_param(pid):
+    if charter_locked():
+        return locked_response()
+    value = str((request.get_json() or {}).get('value', '')).strip()
+    conn = get_db()
+    p = conn.execute('SELECT * FROM agreement_params WHERE id = ?', (pid,)).fetchone()
+    if not p:
+        conn.close()
+        abort(404)
+    if p['kind'] == 'number':
+        try:
+            num = float(value)
+        except ValueError:
+            conn.close()
+            return jsonify({'error': 'Enter a number'}), 400
+        value = '%g' % max(p['min'], min(p['max'], num))
+    elif value not in [o['v'] for o in json.loads(p['options'] or '[]')]:
+        conn.close()
+        return jsonify({'error': 'Not one of the options'}), 400
+    changed = value != p['value']
+    if changed:
+        conn.execute('UPDATE agreement_params SET value = ? WHERE id = ?', (value, pid))
+        conn.execute('DELETE FROM param_votes WHERE param_id = ?', (pid,))
+        conn.commit()
+    conn.close()
+    if changed:
+        clear_signatures('values_changed')
+        broadcast_th()
+    return jsonify({'ok': True})
+
+@app.route('/api/agreement/params/<int:pid>/vote', methods=['POST'])
+@login_required
+def api_agreement_param_vote(pid):
+    if charter_locked():
+        return locked_response()
+    if get_state('agreement_open') != '1':
+        return jsonify({'error': 'The agreement is not open yet'}), 400
+    vote = (request.get_json() or {}).get('vote')
+    if vote in ('ok', 'not_yet'):
+        conn = get_db()
+        conn.execute('INSERT OR REPLACE INTO param_votes (param_id, user_id, vote) VALUES (?,?,?)',
+                     (pid, current_user.id, vote))
+        conn.commit()
+        conn.close()
+        broadcast_th()
+    return jsonify({'ok': True})
+
+@app.route('/api/agreement/sign', methods=['POST'])
+@login_required
+def api_agreement_sign():
+    if charter_locked():
+        return locked_response()
+    if get_state('agreement_open') != '1':
+        return jsonify({'error': 'The agreement is not open yet'}), 400
+    role = current_user.role
+    if role not in bp.SIGNER_ROLES:
+        return jsonify({'error': 'The works council, plant management and the Product Team sign the charter'}), 403
+    conn = get_db()
+    existing = conn.execute('SELECT handle FROM agreement_signatures WHERE role = ?', (role,)).fetchone()
+    if existing:
+        conn.close()
+        return jsonify({'error': 'Already signed for this group by ' + existing['handle']}), 409
+    handle = current_user.public_name if role == 'organizer' else handle_for(current_user.alias)
+    conn.execute('INSERT INTO agreement_signatures (role, user_id, handle, signed_at) VALUES (?,?,?,?)',
+                 (role, current_user.id, handle, now_str()))
+    conn.commit()
+    signed = {r['role'] for r in conn.execute('SELECT role FROM agreement_signatures').fetchall()}
+    conn.close()
+    set_state('agreement_notice', '')
+    if all(r in signed for r in bp.SIGNER_ROLES):
+        lock_agreement()
+        socketio.emit('feed_changed', {})
+    broadcast_th()
+    return jsonify({'ok': True, 'locked': charter_locked()})
+
+@app.route('/charter')
+@login_required
+def charter_page():
+    locked_at = get_state('agreement_locked_at')
+    if locked_at:
+        snap = json.loads(get_state('agreement_snapshot') or '{}')
+        digest = get_state('agreement_hash')
+    else:
+        conn = get_db()
+        snap = charter_snapshot(conn)
+        conn.close()
+        digest = None
+    return render_template('charter.html', snap=snap, digest=digest, locked=bool(locked_at),
+                           lang=current_user.language)
+
 @app.route('/api/notifications')
 @login_required
 def api_notifications():
@@ -868,8 +1231,12 @@ def api_notifications():
     return jsonify(notes)
 
 SETTINGS_SECTIONS = [
-    {'title': 'Privacy', 'items': [
+    {'title': 'Accessibility', 'items': [
+        {'key': 'big', 'label': 'Large text & buttons (glove mode)', 'type': 'big'},
+    ]},
+    {'title': 'Privacy · Zero-Log Shield', 'items': [
         {'key': 'anon', 'label': 'Always post anonymously', 'type': 'toggle', 'default': True, 'locked': True},
+        {'key': 'nolog', 'label': 'No IP address or device data recorded', 'type': 'toggle', 'default': True, 'locked': True},
         {'key': 'strip_meta', 'label': 'Remove photo location data', 'type': 'toggle', 'default': True, 'locked': True},
     ]},
     {'title': 'Language', 'items': [
@@ -1005,13 +1372,15 @@ from seed_data import seed_demo
 
 if __name__ == '__main__':
     init_db()
+    migrate_db()
     seed_demo(get_db, create_user, translate_fields, now_str)
     print('=' * 56)
     print('  BridgePulse is running')
     print('  On this computer : http://localhost:%d' % PORT)
-    print('  On a phone (same Wi-Fi): http://%s:%d' % (lan_ip(), PORT))
-    print('  Organizer login  : priya / priya123')
-    print('  Worker login     : worker / test123   (or tap "Join anonymously")')
+    print('  On a phone (same Wi-Fi): http://%s:%d/join' % (lan_ip(), PORT))
+    print('  Product Team     : priya / priya123')
+    print('  Demo logins      : worker, union, safety, director / test123')
     print('  Translation      : %s' % bp.translation_mode())
+    print('  Request logging  : off (Zero-Log)')
     print('=' * 56)
-    socketio.run(app, host='0.0.0.0', port=PORT, debug=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, host='0.0.0.0', port=PORT, debug=True, allow_unsafe_werkzeug=True, log_output=False)

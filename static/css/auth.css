@@ -47,9 +47,39 @@ h2 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
 .qr code { font-size: 11px; color: var(--muted); word-break: break-all; }
 .error-msg { background: rgba(229,72,77,0.08); border: 1px solid rgba(229,72,77,0.3); color: var(--red); padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 14px; }
 .divider { text-align: center; color: var(--muted); font-size: 12px; margin: 10px 0 18px; }
+.footer a { display: inline-block; padding: 6px 0; }
+
+.join-body { align-items: flex-start; padding-top: 28px; }
+.join-card { width: 100%; max-width: 520px; background: var(--panel); border: 1px solid var(--border); border-radius: 24px; padding: 26px 24px 22px; box-shadow: 0 20px 60px rgba(15,34,51,0.08); animation: fadeIn 0.3s ease; }
+.join-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.join-card .tagline { font-size: 15px; margin: 10px 0 16px; }
+.lang-seg { display: flex; border: 1.5px solid var(--border); border-radius: 12px; overflow: hidden; }
+.lang-seg input { display: none; }
+.lang-seg span { display: block; padding: 9px 14px; font-size: 14px; font-weight: 700; color: var(--text-2); cursor: pointer; background: #fff; }
+.lang-seg input:checked + span { background: var(--brand-ink); color: #fff; }
+.zl-shield { display: flex; gap: 12px; align-items: flex-start; background: #EFF9F3; border: 1.5px solid #BFE3CF; border-radius: 16px; padding: 12px 14px; margin-bottom: 20px; }
+.zl-shield svg { width: 30px; height: 30px; color: #1F7A52; flex-shrink: 0; }
+.zl-shield b { display: block; color: #1F6B49; font-size: 15px; margin-bottom: 2px; }
+.zl-shield ul { list-style: none; font-size: 13.5px; color: #2E5E47; line-height: 1.55; }
+.zl-shield li::before { content: '✓ '; font-weight: 800; }
+.join-card h1 { font-size: 21px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.3px; }
+.role-btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.role-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 112px; padding: 14px 14px 12px; border: 2px solid var(--border); border-top: 8px solid var(--rc); border-radius: 18px; background: #fff; cursor: pointer; text-align: left; font-family: inherit; transition: transform 0.08s, box-shadow 0.15s; touch-action: manipulation; }
+.role-btn:hover { box-shadow: 0 6px 18px rgba(15,34,51,0.1); }
+.role-btn:active { transform: scale(0.97); }
+.role-btn .rb-icon { font-size: 30px; line-height: 1; }
+.role-btn b { font-size: 18px; color: var(--text); margin-top: 4px; overflow-wrap: anywhere; hyphens: auto; line-height: 1.2; }
+.role-btn small { font-size: 13px; color: var(--muted); }
+.fineprint { font-size: 13px; color: var(--text-2); text-align: center; margin: 16px 0 6px; }
+.signin-link { display: block; text-align: center; font-size: 13px; color: var(--accent); font-weight: 600; text-decoration: none; padding: 8px; }
+
 @media (max-width: 760px) {
   .auth-wrap { grid-template-columns: 1fr; }
   .pane { padding: 26px 20px; }
   .pane.join { border-right: none; border-bottom: 1px solid var(--border); }
   .qr { display: none; }
+  .join-card { padding: 22px 16px 18px; border-radius: 20px; }
+  .role-btns { gap: 10px; }
+  .role-btn { min-height: 104px; padding: 12px; }
+  .role-btn b { font-size: 16px; }
 }

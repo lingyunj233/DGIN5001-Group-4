@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BridgePulse · Join</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+</head>
+<body class="join-body">
+<form class="join-card" method="POST" action="/join">
+  <div class="join-top">
+    <div class="logo">
+      <div class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12 6 12 9 5 13 19 16 12 22 12"/></svg></div>
+      BridgePulse
+    </div>
+    <div class="lang-seg" role="radiogroup" aria-label="Sprache / Language">
+      <label><input type="radio" name="language" value="de" checked onchange="setLang('de')"><span>Deutsch</span></label>
+      <label><input type="radio" name="language" value="en" onchange="setLang('en')"><span>English</span></label>
+    </div>
+  </div>
+  <p class="tagline" data-de="Deine Stimme für das Town Hall zum AMR-Rollout." data-en="Your voice for the AMR rollout Town Hall.">Deine Stimme für das Town Hall zum AMR-Rollout.</p>
+
+  <div class="zl-shield">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+    <div>
+      <b>Zero-Log Shield</b>
+      <ul>
+        <li data-de="Kein Name, keine E-Mail, kein Passwort" data-en="No name, no e-mail, no password">Kein Name, keine E-Mail, kein Passwort</li>
+        <li data-de="Keine IP-Adresse, keine Geräte- oder Browserdaten gespeichert" data-en="No IP address, device or browser data recorded">Keine IP-Adresse, keine Geräte- oder Browserdaten gespeichert</li>
+        <li data-de="Andere sehen nur deine Gruppe" data-en="Others only ever see your group">Andere sehen nur deine Gruppe</li>
+      </ul>
+    </div>
+  </div>
+
+  <h1 data-de="Tippe auf deine Gruppe – fertig." data-en="Tap your group – that's it.">Tippe auf deine Gruppe – fertig.</h1>
+  <div class="role-btns">
+    {% for key in public_roles %}
+    <button type="submit" name="role" value="{{ key }}" class="role-btn" style="--rc: {{ roles[key].color }}">
+      <span class="rb-icon">{{ icons[key] }}</span>
+      <b data-de="{{ roles[key].label_de }}" data-en="{{ roles[key].label }}">{{ roles[key].label_de }}</b>
+      <small data-de="{{ roles[key].label }}" data-en="{{ roles[key].label_de }}">{{ roles[key].label }}</small>
+    </button>
+    {% endfor %}
+  </div>
+  <p class="fineprint" data-de="Kein Konto nötig. Dein Zugang bleibt nur auf diesem Gerät." data-en="No account needed. Your access stays on this device only.">Kein Konto nötig. Dein Zugang bleibt nur auf diesem Gerät.</p>
+  <a class="signin-link" href="/login" data-de="Produktteam oder Demo-Konto? Anmelden →" data-en="Product Team or demo account? Sign in →">Produktteam oder Demo-Konto? Anmelden →</a>
+</form>
+<script>
+function setLang(l) {
+  document.documentElement.lang = l;
+  document.querySelectorAll('[data-' + l + ']').forEach(function (el) { el.textContent = el.getAttribute('data-' + l); });
+  var r = document.querySelector('input[name="language"][value="' + l + '"]');
+  if (r) r.checked = true;
+}
+(function () {
+  var nav = (navigator.language || 'de').toLowerCase();
+  setLang(nav.indexOf('de') === 0 ? 'de' : 'en');
+})();
+</script>
+</body>
+</html>

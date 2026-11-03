@@ -8,7 +8,7 @@ import urllib.request
 
 ROLES = {
     'line_worker':    {'label': 'Line Worker',     'label_de': 'Bandarbeiter/in',      'weight': 1.5, 'color': '#2F7FB0'},
-    'safety_officer': {'label': 'Safety Officer',  'label_de': 'Sicherheitsfachkraft', 'weight': 1.3, 'color': '#E07A00'},
+    'safety_officer': {'label': 'Safety Officer',  'label_de': 'Sicherheits\u00adfachkraft', 'weight': 1.3, 'color': '#E07A00'},
     'union_rep':      {'label': 'Union Rep',       'label_de': 'Betriebsrat',          'weight': 1.2, 'color': '#2F9E6E'},
     'director':       {'label': 'Plant Director',  'label_de': 'Werksleitung',         'weight': 1.0, 'color': '#7C5CD6'},
     'organizer':      {'label': 'Product Team',    'label_de': 'Produktteam',       'weight': 0.0, 'color': '#0B3C5D'},
@@ -60,7 +60,163 @@ THEMES = {
                'ziel', 'zielvorgabe', 'quote', 'druck', 'stückzahl', 'stückzahlen', 'vorgabe', 'leistung', 'chef'],
     },
 }
-THEME_OTHER = {'label': 'Other', 'color': '#94A3B8'}
+THEME_OTHER = {'label': 'Other', 'label_de': 'Sonstiges', 'color': '#94A3B8'}
+
+THEME_LABELS_DE = {
+    'safety': 'Körperliche Sicherheit',
+    'pacing': 'Tempo & Arbeitslast',
+    'jobs': 'Arbeitsplatzsicherheit',
+    'codetermination': 'Mitbestimmung & Datenschutz',
+    'training': 'Schulung & Qualifizierung',
+    'targets': 'Zielvorgaben & Druck',
+}
+for _k, _v in THEME_LABELS_DE.items():
+    THEMES[_k]['label_de'] = _v
+
+ROLE_ICONS = {'line_worker': '👷', 'safety_officer': '🦺', 'union_rep': '🤝', 'director': '🏭', 'organizer': '🧭'}
+
+QUICK_TAGS = {
+    'pacing_hazard': {'theme': 'pacing', 'icon': '⏱️', 'en': 'Pacing hazard', 'de': 'Tempo zu hoch'},
+    'corridor_blocked': {'theme': 'safety', 'icon': '🚧', 'en': 'Corridor blockage', 'de': 'Gang blockiert'},
+    'near_miss': {'theme': 'safety', 'icon': '⚠️', 'en': 'Near miss', 'de': 'Beinahe-Unfall'},
+    'estop_reach': {'theme': 'safety', 'icon': '🛑', 'en': 'E-stop out of reach', 'de': 'Not-Aus schwer erreichbar'},
+    'cant_hear': {'theme': 'safety', 'icon': '🔇', 'en': "Can't hear warnings", 'de': 'Warn\u00adsignal unhörbar'},
+    'no_breaks': {'theme': 'pacing', 'icon': '☕', 'en': 'No time for breaks', 'de': 'Keine Pausen möglich'},
+    'job_worry': {'theme': 'jobs', 'icon': '💼', 'en': 'Worried about my job', 'de': 'Sorge um meinen Job'},
+    'need_training': {'theme': 'training', 'icon': '🎓', 'en': 'Need training', 'de': 'Schulung nötig'},
+    'camera_data': {'theme': 'codetermination', 'icon': '📷', 'en': 'Cameras & my data', 'de': 'Kameras & meine Daten'},
+    'target_pressure': {'theme': 'targets', 'icon': '📈', 'en': 'Target pressure', 'de': 'Druck durch Vorgaben'},
+}
+
+SENTIMENTS = {
+    1: {'face': '😟', 'en': 'Very worried', 'de': 'Sehr besorgt'},
+    2: {'face': '🙁', 'en': 'Worried', 'de': 'Besorgt'},
+    3: {'face': '😐', 'en': 'Unsure', 'de': 'Unsicher'},
+    4: {'face': '🙂', 'en': 'OK', 'de': 'Okay'},
+    5: {'face': '😊', 'en': 'Fine', 'de': 'Alles gut'},
+}
+
+def tag_line(tags, lang='en'):
+    return ' · '.join(QUICK_TAGS[t][lang] for t in tags or [] if t in QUICK_TAGS)
+
+SESSION_MINUTES = 60
+FOCUS_BUDGET = 12
+AGENDA = [
+    (0, 5, 'opening', 'Opening: what we heard'),
+    (5, 17, 'c1', 'Concern 1'),
+    (17, 29, 'c2', 'Concern 2'),
+    (29, 41, 'c3', 'Concern 3'),
+    (41, 45, 'qa', 'Open questions'),
+    (45, 57, 'agreement', 'Co-Design Agreement'),
+    (57, 60, 'wrap', 'Wrap-up & survey'),
+]
+
+def agenda_segment(elapsed):
+    for start, end, key, _ in AGENDA:
+        if start <= elapsed < end:
+            return key
+    return 'over'
+
+SIGNER_ROLES = ['union_rep', 'director', 'organizer']
+SIGNER_LABELS = {
+    'union_rep': ('Works council', 'Betriebsrat'),
+    'director': ('Plant management', 'Werksleitung'),
+    'organizer': ('Product Team', 'Produktteam'),
+}
+
+THEME_PROMPTS = {
+    'safety': 'Show where AMRs and people share aisles, then ask: "Where should the robots never drive while people are there?"',
+    'pacing': 'Ask what AMR speed would feel workable for a trial, then launch a quick poll with three speed options.',
+    'jobs': 'Say plainly what is decided and what is not about roles. Do not promise what the company cannot guarantee.',
+    'codetermination': 'Confirm the works council\'s role and list exactly what data the AMRs record and who can see it.',
+    'training': 'Ask how much hands-on training time people want, and who on the floor should give it.',
+    'targets': 'Ask the plant director which targets are fixed and which can flex during the trial.',
+    'other': 'Ask one person from this group to explain it in their own words.',
+}
+
+def _short(text, n):
+    text = text or ''
+    return text if len(text) <= n else text[:n - 1].rstrip() + '…'
+
+def card_prompts(card):
+    out = [THEME_PROMPTS.get(card['key'], THEME_PROMPTS['other'])]
+    avg = card.get('sentiment_avg')
+    if avg is not None and avg <= 2.2:
+        out.append('Feelings run high here (%.1f/5). Acknowledge what you heard before explaining the plan.' % avg)
+    elif card.get('line_share', 0) >= 60:
+        out.append('%d%% of these voices are line workers. Invite one to speak; live captions translate German.'
+                   % card['line_share'])
+    acts = card.get('actions') or []
+    if acts:
+        a = acts[0]
+        if a['not_yet'] > a['agree']:
+            out.append('"%s" has more "not yet" (%d) than "agree" (%d). Ask what would change that.'
+                       % (_short(a['title'], 55), a['not_yet'], a['agree']))
+        else:
+            out.append('"%s" is in the charter (%d agree / %d not yet). Check for objections, then confirm it.'
+                       % (_short(a['title'], 55), a['agree'], a['not_yet']))
+    else:
+        out.append('No action yet. Agree one concrete next step and add it to the charter.')
+    return out[:3]
+
+def auto_summary(theme):
+    if theme.get('tag_counts'):
+        top = ', '.join('%s (%d)' % (QUICK_TAGS[k]['en'], n) for k, n in theme['tag_counts'][:3])
+        return 'Most reported: %s. Mostly from %ss.' % (top, ROLES[theme['top_role']]['label'])
+    return '"%s"' % _short(theme.get('top_quote', ''), 150)
+
+def session_prompts(ctx):
+    phase = ctx['phase']
+    if phase == 'before':
+        top = ctx['cards'][0]['label'] if ctx['cards'] else 'none yet'
+        return ['Press ● Go live to start the 60-minute clock. %d concerns are waiting; the top theme is %s.'
+                % (ctx['total_posts'], top)]
+    if phase == 'after':
+        return ['The survey is open: %d responses so far. The charter stays visible to everyone.' % ctx['survey_n']]
+    out = []
+    elapsed, remaining = ctx['elapsed'], ctx['remaining']
+    if elapsed < 5:
+        out.append('Opening: start with what you heard in the Square. People want to be listened to, not presented to.')
+    focus = ctx.get('focus')
+    seg = ctx.get('segment')
+    if focus and focus['minutes'] >= FOCUS_BUDGET and seg not in ('agreement', 'wrap', 'over'):
+        out.append('%d min on %s. Capture the outcome in the charter and move to the next concern.'
+                   % (int(focus['minutes']), focus['label']))
+    elif seg in ('c1', 'c2', 'c3'):
+        idx = int(seg[1]) - 1
+        if idx < len(ctx['cards']) and (not focus or focus['key'] != ctx['cards'][idx]['key']):
+            out.append('Agenda says: %s now. Press "Discuss now" on card %d.' % (ctx['cards'][idx]['label'], idx + 1))
+    if remaining <= 15 and not ctx['agreement_open'] and not ctx['agreement_locked']:
+        out.append('Final 15 minutes: open the Co-Design Agreement now.')
+    if ctx['agreement_open'] and not ctx['agreement_locked'] and ctx['missing_signers']:
+        out.append('Waiting for signatures: %s.' % ', '.join(ctx['missing_signers']))
+    if ctx['pulse_n'] >= 3 and ctx['pulse_avg'] < 2.5:
+        out.append('The room feels uneasy (%.1f/5). Pause and ask what would help.' % ctx['pulse_avg'])
+    if ctx['recent_concern'] >= 3:
+        out.append('%d "Concern" reactions in the last 2 minutes. Check in with the room.' % ctx['recent_concern'])
+    if remaining <= 0:
+        out.append('Time is up. Close with the agreement and open the survey.')
+    return out[:4]
+
+_summary_cache = {}
+
+def cluster_summary(label, texts):
+    if not llm_available() or not texts:
+        return None
+    key = (label, tuple(texts[:12]))
+    if key in _summary_cache:
+        return _summary_cache[key]
+    prompt = ('Anonymous workers at a German car plant posted these concerns about a new autonomous mobile robot '
+              '(AMR) rollout. They are grouped under "' + label + '". In one sentence of at most 25 words, say '
+              'what people are most worried about. Plain English, no preamble.\n\n' +
+              '\n'.join('- ' + t for t in texts[:12]))
+    try:
+        out = _llm(prompt, max_tokens=120) or None
+    except Exception as e:
+        print('  [BridgePulse] LLM summary failed:', e)
+        out = None
+    _summary_cache[key] = out
+    return out
 
 def theme_meta(key):
     return THEMES.get(key, THEME_OTHER)

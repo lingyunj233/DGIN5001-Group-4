@@ -1,6 +1,7 @@
 'use strict';
 
 var ME = BOOT.me, THEMES = BOOT.themes, ROLES = BOOT.roles;
+var QT = BOOT.quickTags, SENTS = BOOT.sentiments, ZONES = BOOT.zones, AGENDA = BOOT.agenda;
 var state = {
   mode: 'square', lang: ME.language,
   sort: 'latest', theme: '',
@@ -9,6 +10,74 @@ var state = {
   contacts: [], rooms: [], activeChat: null, currentRoom: null, messages: [], selectedMsg: null,
   media: null, pendingVoice: false
 };
+var quick = { tags: [], sentiment: null, zone: '', voice: '' };
+var composerMode = ME.isOrganizer ? 'write' : 'quick';
+
+var TX = {
+  en: {
+    quick: 'Quick report', write: 'Write', postingAs: 'Posting as',
+    step1: 'What is the problem?', step1h: 'tap up to 3', step2: 'Say more (optional)',
+    speak: 'Tap to speak', listening: 'Listening… tap to stop', photo: 'Photo',
+    voicePh: 'Your words appear here. You can also type.', step3: 'How do you feel about it?', swipe: 'Swipe or tap a face',
+    step4: 'Where? (optional)', send: 'Send report', sending: 'Sending…', sent: 'Sent anonymously. Thank you!',
+    needOne: 'Tap a problem or say something first', max3: 'Up to 3 problems per report',
+    noSpeech: 'Voice input is not available in this browser. Tap the text box and use the microphone on your keyboard.',
+    micBlocked: 'Microphone blocked. Allow it in the browser, or use the microphone on your keyboard.',
+    noSpeechHeard: 'Didn\'t catch that. Hold the phone closer and try again.',
+    micNetwork: 'The speech service is unreachable. Use the microphone on your keyboard instead.',
+    micError: 'Voice input stopped',
+    zlTitle: 'Zero-Log Shield', zlClose: 'Got it',
+    zl1: 'No name, e-mail, phone number or password', zl2: 'No IP address, device or browser data is recorded',
+    zl3: 'Others only see your group and a random handle', zl4: 'Photo location data is removed before upload',
+    zl5: 'What is stored: your report, your group and your language',
+    nowDiscussing: 'Now discussing', nowHint: 'React or vote below',
+    actionLink: 'In the action charter', statusProposed: 'proposed', statusAgreed: 'agreed', statusUnresolved: 'unresolved', statusSigned: 'signed',
+    agTitle: 'Co-Design Agreement', agSub: 'final 15 minutes · trial rules both sides sign',
+    agLater: 'Opens in the final 15 minutes. Union reps and plant management agree on concrete trial rules and co-sign the charter. You can show your view on each rule.',
+    agWorks: 'Works for me', agNotYet: 'Not yet', agWaiting: 'not signed yet', agSign: 'Sign for my group',
+    agConfirm: 'Sign the charter and these trial rules for your group? Changing a value later clears all signatures.',
+    agLocked: 'Signed & locked', agLockedLong: 'Signed by all three groups and locked on', agOpen: 'Open the signed charter',
+    agCleared: 'Values changed, so the signatures were cleared. Everyone signs the final version.',
+    agCleared2: 'The action charter changed, so the signatures were cleared. Everyone signs the final version.',
+    agYouSigned: 'You signed for your group',
+    metoo: 'Me too', replyPh: 'Reply anonymously…', reply: 'Reply',
+    writePh: "What's on your mind? German or English is fine…", signOut: 'Sign out'
+  },
+  de: {
+    quick: 'Schnellmeldung', write: 'Schreiben', postingAs: 'Du postest als',
+    step1: 'Was ist das Problem?', step1h: 'bis zu 3 antippen', step2: 'Mehr sagen (optional)',
+    speak: 'Tippen und sprechen', listening: 'Ich höre zu … zum Stoppen tippen', photo: 'Foto',
+    voicePh: 'Deine Worte erscheinen hier. Du kannst auch tippen.', step3: 'Wie fühlst du dich dabei?', swipe: 'Wischen oder Gesicht antippen',
+    step4: 'Wo? (optional)', send: 'Meldung senden', sending: 'Wird gesendet …', sent: 'Anonym gesendet. Danke!',
+    needOne: 'Tippe zuerst ein Problem an oder sprich etwas', max3: 'Höchstens 3 Probleme pro Meldung',
+    noSpeech: 'Spracheingabe geht in diesem Browser nicht. Tippe ins Textfeld und nutze das Mikrofon deiner Tastatur.',
+    micBlocked: 'Mikrofon blockiert. Erlaube es im Browser oder nutze das Mikrofon deiner Tastatur.',
+    noSpeechHeard: 'Nichts verstanden. Halte das Handy näher und versuche es noch einmal.',
+    micNetwork: 'Der Sprachdienst ist nicht erreichbar. Nutze das Mikrofon deiner Tastatur.',
+    micError: 'Spracheingabe beendet',
+    zlTitle: 'Zero-Log Shield', zlClose: 'Verstanden',
+    zl1: 'Kein Name, keine E-Mail, keine Telefonnummer, kein Passwort', zl2: 'Keine IP-Adresse, keine Geräte- oder Browserdaten gespeichert',
+    zl3: 'Andere sehen nur deine Gruppe und ein zufälliges Kürzel', zl4: 'Standortdaten in Fotos werden vor dem Hochladen entfernt',
+    zl5: 'Gespeichert wird: deine Meldung, deine Gruppe und deine Sprache',
+    nowDiscussing: 'Jetzt im Gespräch', nowHint: 'Unten reagieren oder abstimmen',
+    actionLink: 'Im Maßnahmenplan', statusProposed: 'vorgeschlagen', statusAgreed: 'vereinbart', statusUnresolved: 'offen', statusSigned: 'unterschrieben',
+    agTitle: 'Gemeinsame Vereinbarung', agSub: 'letzte 15 Minuten · Testregeln, die beide Seiten unterschreiben',
+    agLater: 'Öffnet in den letzten 15 Minuten. Betriebsrat und Werksleitung legen konkrete Testregeln fest und unterschreiben den Plan. Du kannst bei jeder Regel deine Meinung zeigen.',
+    agWorks: 'Passt für mich', agNotYet: 'Noch nicht', agWaiting: 'noch nicht unterschrieben', agSign: 'Für meine Gruppe unterschreiben',
+    agConfirm: 'Den Plan und diese Testregeln für deine Gruppe unterschreiben? Spätere Änderungen löschen alle Unterschriften.',
+    agLocked: 'Unterschrieben & gesperrt', agLockedLong: 'Von allen drei Gruppen unterschrieben und gesperrt am', agOpen: 'Unterschriebenen Plan öffnen',
+    agCleared: 'Werte wurden geändert, daher wurden die Unterschriften gelöscht. Alle unterschreiben die endgültige Fassung.',
+    agCleared2: 'Der Maßnahmenplan wurde geändert, daher wurden die Unterschriften gelöscht. Alle unterschreiben die endgültige Fassung.',
+    agYouSigned: 'Du hast für deine Gruppe unterschrieben',
+    metoo: 'Ich auch', replyPh: 'Anonym antworten …', reply: 'Antworten',
+    writePh: 'Was beschäftigt dich? Deutsch oder Englisch, beides geht …', signOut: 'Abmelden'
+  }
+};
+function tx(k) { var d = TX[state.lang] || TX.en; return d[k] != null ? d[k] : (TX.en[k] != null ? TX.en[k] : k); }
+function themeLabel(key) { var t = THEMES[key] || THEMES.other; return state.lang === 'de' ? (t.label_de || t.label) : t.label; }
+function themeKeys() { return Object.keys(THEMES).filter(function (k) { return k !== 'other'; }).concat(['other']); }
+function tagLabel(k) { var t = QT[k]; return t ? (t[state.lang] || t.en) : k; }
+function feelLabel(v) { var s = SENTS[v]; return s ? (s[state.lang] || s.en) : ''; }
 
 function $(id) { return document.getElementById(id); }
 function esc(s) {
@@ -33,12 +102,26 @@ function toast(msg) {
 }
 function debounce(fn, ms) { var t; return function () { var a = arguments; clearTimeout(t); t = setTimeout(function () { fn.apply(null, a); }, ms); }; }
 function langName(l) { return l === 'de' ? 'German' : 'English'; }
+function trFrom(l) {
+  if (state.lang === 'de') return 'Übersetzt aus dem ' + (l === 'de' ? 'Deutschen' : 'Englischen');
+  return 'Translated from ' + langName(l);
+}
+function scrollPanelTo(el) {
+  var box = el && el.closest('.th-scroll, .feed-scroll'); if (!box) return;
+  var top = el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - 90;
+  box.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+}
+function personName(p) {
+  if (p.role === 'organizer' || state.lang !== 'de' || !ROLES[p.role]) return p.name;
+  return 'Anonym · ' + ROLES[p.role].label_de;
+}
+function roleLabel(p) { return state.lang === 'de' && ROLES[p.role] ? ROLES[p.role].label_de : p.role_label; }
 function avatarHTML(p, cls) {
   return '<div class="avatar ' + (cls || '') + '" style="background:' + esc(p.color) + '">' + esc(p.initials) + '</div>';
 }
 function roleBadge(p) {
   if (p.role === 'organizer') return '<svg class="verified" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l2.6 2.2 3.4-.3.9 3.3 3 1.6-1.2 3.2 1.2 3.2-3 1.6-.9 3.3-3.4-.3L12 23l-2.6-2.2-3.4.3-.9-3.3-3-1.6L3.3 13 2.1 9.8l3-1.6.9-3.3 3.4.3z"/><path d="M8 12.5l2.6 2.5L16 9.5" stroke="#fff" stroke-width="2" fill="none"/></svg>';
-  return '<span class="role-badge" style="background:' + esc(p.color) + '">' + esc(p.role_label) + '</span>';
+  return '<span class="role-badge" style="background:' + esc(p.color) + '">' + esc(roleLabel(p)) + '</span>';
 }
 var _trSeq = 0;
 function textBlock(o, cls) {
@@ -48,7 +131,7 @@ function textBlock(o, cls) {
   if (o.lang && o.lang !== lang && o.content && shown !== o.content) {
     var id = 'tr' + (++_trSeq);
     html += '<div class="tr-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg>' +
-      'Translated from ' + langName(o.lang) + ' · <button onclick="$(\'' + id + '\').classList.toggle(\'show\')">Show original</button></div>' +
+      esc(trFrom(o.lang)) + ' · <button onclick="$(\'' + id + '\').classList.toggle(\'show\')">' + esc(state.lang === 'de' ? 'Original zeigen' : 'Show original') + '</button></div>' +
       '<div class="tr-original" id="' + id + '">' + esc(o.content) + '</div>';
   }
   return html;
@@ -60,7 +143,12 @@ var ICON = {
   pin: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 3l5 5-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4z"/></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
   place: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
-  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>'
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>',
+  camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  spark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>',
+  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>',
+  pen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
 };
 
 var socket = io();
@@ -102,7 +190,9 @@ function switchMode(mode) {
     $(m + 'ModeBtn').classList.toggle('active', m === mode);
     $(m + 'Panel').classList.toggle('active', m === mode);
   });
-  document.body.className = 'mode-' + mode + (state.activeChat && mode === 'voice' ? ' chat-open' : '');
+  document.body.classList.remove('mode-square', 'mode-voice', 'mode-townhall');
+  document.body.classList.add('mode-' + mode);
+  document.body.classList.toggle('chat-open', !!(state.activeChat && mode === 'voice'));
   var left = document.querySelector('.sidebar-left');
   $('leftSquare').classList.toggle('active', mode === 'square');
   $('leftVoice').classList.toggle('active', mode === 'voice');
@@ -115,10 +205,12 @@ function switchMode(mode) {
 
 function setLanguage(l) {
   state.lang = l;
+  document.documentElement.lang = l;
   $('langDe').classList.toggle('active', l === 'de');
   $('langEn').classList.toggle('active', l === 'en');
   api('/api/me', { language: l }).catch(function () {});
   renderFeed(); renderMessages(); renderInsightsPanel(); if (state.th) renderTownHall();
+  renderThemeFilter(); renderComposerLabels(); renderQuick();
   loadSettings();
 }
 
@@ -139,22 +231,37 @@ function setThemeFilter(t) {
 function renderThemeFilter() {
   var counts = {};
   ((state.insights && state.insights.themes) || []).forEach(function (t) { counts[t.key] = t.posts; });
-  var keys = Object.keys(THEMES).concat(['other']);
+  var keys = themeKeys();
   var total = state.insights ? state.insights.total_posts : '';
   var html = '<button class="theme-filter-item' + (state.theme ? '' : ' active') + '" onclick="setThemeFilter(\'\')"><span class="theme-dot" style="background:var(--brand)"></span>All concerns<span class="count">' + total + '</span></button>';
   var chips = '<button class="tag" style="border:1px solid var(--border);background:' + (state.theme ? '#fff' : 'var(--brand)') + ';color:var(--brand-ink);cursor:pointer" onclick="setThemeFilter(\'\')">All</button>';
   keys.forEach(function (k) {
-    var meta = THEMES[k] || { label: 'Other', color: '#94A3B8' };
-    html += '<button class="theme-filter-item' + (state.theme === k ? ' active' : '') + '" onclick="setThemeFilter(\'' + k + '\')"><span class="theme-dot" style="background:' + meta.color + '"></span>' + esc(meta.label) + '<span class="count">' + (counts[k] || 0) + '</span></button>';
+    var meta = THEMES[k] || THEMES.other;
+    html += '<button class="theme-filter-item' + (state.theme === k ? ' active' : '') + '" onclick="setThemeFilter(\'' + k + '\')"><span class="theme-dot" style="background:' + meta.color + '"></span>' + esc(themeLabel(k)) + '<span class="count">' + (counts[k] || 0) + '</span></button>';
     var on = state.theme === k;
-    chips += '<button class="tag" style="cursor:pointer;white-space:nowrap;border:1px solid ' + meta.color + ';background:' + (on ? meta.color : '#fff') + ';color:' + (on ? '#fff' : meta.color) + '" onclick="setThemeFilter(\'' + k + '\')">' + esc(meta.label) + '</button>';
+    chips += '<button class="tag" style="cursor:pointer;white-space:nowrap;border:1px solid ' + meta.color + ';background:' + (on ? meta.color : '#fff') + ';color:' + (on ? '#fff' : meta.color) + '" onclick="setThemeFilter(\'' + k + '\')">' + esc(themeLabel(k)) + '</button>';
   });
   $('themeFilter').innerHTML = html;
   $('chipRow').innerHTML = chips;
 }
 function themeTag(p) {
   if (!p.theme || p.theme === 'other' && p.is_broadcast) return '';
-  return '<span class="tag" style="background:' + p.theme_color + '1A;color:' + p.theme_color + '"><span class="theme-dot" style="background:' + p.theme_color + ';width:7px;height:7px"></span>' + esc(p.theme_label) + '</span>';
+  return '<span class="tag" style="background:' + p.theme_color + '1A;color:' + p.theme_color + '"><span class="theme-dot" style="background:' + p.theme_color + ';width:7px;height:7px"></span>' + esc(themeLabel(p.theme)) + '</span>';
+}
+function quickChips(p) {
+  var html = (p.tags || []).map(function (k) {
+    var t = QT[k]; if (!t) return '';
+    return '<span class="qchip" style="--tc:' + ((THEMES[t.theme] || THEMES.other).color) + '"><span class="qchip-i">' + t.icon + '</span>' + esc(tagLabel(k)) + '</span>';
+  }).join('');
+  if (p.sentiment && SENTS[p.sentiment]) html += '<span class="feel-chip">' + SENTS[p.sentiment].face + ' ' + esc(feelLabel(p.sentiment)) + '</span>';
+  return html ? '<div class="qchips">' + html + '</div>' : '';
+}
+function statusWord(s) {
+  return tx({ proposed: 'statusProposed', agreed: 'statusAgreed', unresolved: 'statusUnresolved', signed: 'statusSigned' }[s] || 'statusProposed');
+}
+function actionLink(p) {
+  if (!p.action) return '';
+  return '<div class="post-action-link st-' + esc(p.action.status) + '">' + ICON.pen + '<span>' + esc(tx('actionLink')) + ': <b>' + esc(p.action.title) + '</b> · ' + esc(statusWord(p.action.status)) + '</span></div>';
 }
 function postHTML(p) {
   var a = p.author;
@@ -169,19 +276,21 @@ function postHTML(p) {
   var actions = p.is_broadcast ? '' :
     '<div class="post-actions">' +
       '<button class="act-btn" onclick="toggleThread(' + p.id + ')" title="Reply">' + ICON.reply + (p.comments || '') + '</button>' +
-      '<button class="act-btn metoo' + (p.supported ? ' on' : '') + '" onclick="toggleSupport(' + p.id + ')" title="Me too">' + ICON.heart + 'Me too' + (p.support ? ' · ' + p.support : '') + '</button>' +
+      '<button class="act-btn metoo' + (p.supported ? ' on' : '') + '" onclick="toggleSupport(' + p.id + ')" title="Me too">' + ICON.heart + esc(tx('metoo')) + (p.support ? ' · ' + p.support : '') + '</button>' +
       '<span class="post-score" title="Role-weighted priority">' + ICON.bars + p.score + '</span>' +
     '</div>' +
     '<div class="thread' + (state.openThreads[p.id] ? ' open' : '') + '" id="thread-' + p.id + '"></div>';
   return '<div class="post" id="post-' + p.id + '">' +
     avatarHTML(a, 'post-avatar') +
     '<div class="post-main">' +
-      '<div class="post-head"><span class="post-name">' + esc(a.name) + '</span>' + roleBadge(a) +
+      '<div class="post-head"><span class="post-name">' + esc(personName(a)) + '</span>' + roleBadge(a) +
         '<span class="post-handle">' + esc(a.handle) + '</span><span class="post-time">· ' + esc(p.time) + '</span>' +
         (canDel ? '<button class="post-del" title="Delete" onclick="deletePost(' + p.id + ')">' + ICON.trash + '</button>' : '') +
       '</div>' +
-      textBlock(p, 'post-body') + media +
+      quickChips(p) +
+      (p.content ? textBlock(p, 'post-body') : '') + media +
       (tags ? '<div class="post-tags">' + tags + '</div>' : '') +
+      actionLink(p) +
       actions +
     '</div></div>';
 }
@@ -218,10 +327,10 @@ function loadThread(id) {
     var el = $('thread-' + id); if (!el) return;
     var draft = el.querySelector('input') ? el.querySelector('input').value : '';
     el.innerHTML = list.map(function (c) {
-      return '<div class="comment">' + avatarHTML(c.author) + '<div><div class="comment-head"><b>' + esc(c.author.name) + '</b> · ' + esc(c.time) + '</div>' +
+      return '<div class="comment">' + avatarHTML(c.author) + '<div><div class="comment-head"><b>' + esc(personName(c.author)) + '</b> · ' + esc(c.time) + '</div>' +
         textBlock(c, 'comment-body') + '</div></div>';
     }).join('') +
-      '<div class="reply-box"><input placeholder="Reply anonymously…" value="' + esc(draft) + '" onkeydown="if(event.key===\'Enter\')sendComment(' + id + ',this)"><button class="btn-primary" onclick="sendComment(' + id + ',this.previousElementSibling)">Reply</button></div>';
+      '<div class="reply-box"><input placeholder="' + esc(tx('replyPh')) + '" value="' + esc(draft) + '" onkeydown="if(event.key===\'Enter\')sendComment(' + id + ',this)"><button class="btn-primary" onclick="sendComment(' + id + ',this.previousElementSibling)">' + esc(tx('reply')) + '</button></div>';
   });
 }
 function sendComment(id, input) {
@@ -251,22 +360,25 @@ function onMediaPicked(input) {
   input.value = '';
   var isImg = /^image\//.test(f.type) && !/gif$/.test(f.type);
   var prep = isImg ? stripImageMetadata(f) : Promise.resolve(f);
-  $('postBtn').disabled = true;
+  setUploading(true);
   prep.then(function (blob) {
     var fd = new FormData();
     var name = isImg ? 'photo.jpg' : f.name;
     fd.append('file', blob, name);
     return fetch('/api/upload', { method: 'POST', body: fd }).then(function (r) { return r.json(); });
   }).then(function (d) {
-    $('postBtn').disabled = false;
+    setUploading(false);
     if (d.error) { toast(d.error); return; }
     state.media = d;
     var pv = $('mediaPreview');
     pv.innerHTML = (d.type === 'video' ? '<video src="' + d.url + '" controls></video>' : '<img src="' + d.url + '">') +
       '<button class="media-remove" onclick="clearMedia()">×</button>';
     pv.classList.add('show');
-    if (isImg) toast('Photo location data removed');
-  }).catch(function () { $('postBtn').disabled = false; toast('Upload failed'); });
+    if (isImg) toast(state.lang === 'de' ? 'Standortdaten im Foto entfernt' : 'Photo location data removed');
+  }).catch(function () { setUploading(false); toast('Upload failed'); });
+}
+function setUploading(on) {
+  ['postBtn', 'quickSend'].forEach(function (id) { if ($(id)) $(id).disabled = on; });
 }
 function stripImageMetadata(file) {
   return new Promise(function (resolve) {
@@ -302,6 +414,158 @@ function submitPost() {
   }).catch(function (e) { $('postBtn').disabled = false; toast(e.message); });
 }
 
+function renderComposerLabels() {
+  if ($('cmQuickLbl')) { $('cmQuickLbl').textContent = tx('quick'); $('cmWriteLbl').textContent = tx('write'); }
+  if (!ME.isOrganizer && $('postingAs')) {
+    var name = state.lang === 'de' ? 'Anonym · ' + ME.roleLabelDe : ME.name;
+    $('postingAs').innerHTML = esc(tx('postingAs')) + ' <b>' + esc(name) + '</b>';
+  }
+  if ($('quickSend')) $('quickSend').textContent = tx('send');
+  if (!ME.isOrganizer && $('composerInput')) $('composerInput').placeholder = tx('writePh');
+}
+function setComposerMode(m) {
+  if (ME.isOrganizer) m = 'write';
+  composerMode = m;
+  if ($('quickPane')) $('quickPane').classList.toggle('hidden', m !== 'quick');
+  $('writePane').classList.toggle('hidden', m !== 'write');
+  if ($('cmQuick')) { $('cmQuick').classList.toggle('active', m === 'quick'); $('cmWrite').classList.toggle('active', m === 'write'); }
+  var slot = m === 'quick' && $('quickMediaSlot') ? $('quickMediaSlot') : $('writeMediaSlot');
+  slot.appendChild($('mediaPreview'));
+  try { localStorage.setItem('bp_cmode', m); } catch (e) {}
+}
+function renderQuick() {
+  var el = $('quickBody'); if (!el) return;
+  var tiles = BOOT.quickOrder.map(function (k) {
+    var t = QT[k], on = quick.tags.indexOf(k) !== -1, color = (THEMES[t.theme] || THEMES.other).color;
+    return '<button class="qtag' + (on ? ' on' : '') + '" style="--tc:' + color + '" aria-pressed="' + on + '" onclick="toggleQuickTag(\'' + k + '\')">' +
+      '<span class="qi">' + t.icon + '</span><span class="ql">' + esc(tagLabel(k)) + '</span>' + (on ? '<span class="qcheck">✓</span>' : '') + '</button>';
+  }).join('');
+  var zones = ZONES.map(function (z, i) {
+    return '<button class="zchip' + (quick.zone === z ? ' on' : '') + '" onclick="pickZone(' + i + ')">' + ICON.place + esc(z) + '</button>';
+  }).join('');
+  el.innerHTML =
+    '<div class="qstep"><b>1</b>' + esc(tx('step1')) + '<small>' + esc(tx('step1h')) + '</small></div>' +
+    '<div class="qtag-grid">' + tiles + '</div>' +
+    '<div class="qstep"><b>2</b>' + esc(tx('step2')) + '</div>' +
+    '<div class="qvoice"><button class="big-mic' + (qRecOn ? ' recording' : '') + '" id="qMicBtn" onclick="toggleQuickMic()">' + ICON.mic + '<span>' + esc(qRecOn ? tx('listening') : tx('speak')) + '</span></button>' +
+      '<button class="big-photo" onclick="$(\'mediaInput\').click()">' + ICON.camera + '<span>' + esc(tx('photo')) + '</span></button></div>' +
+    '<textarea class="qvoice-text' + (quick.voice ? ' has' : '') + '" id="qVoiceText" rows="2" placeholder="' + esc(tx('voicePh')) + '" oninput="quick.voice=this.value;this.classList.toggle(\'has\',!!this.value)">' + esc(quick.voice) + '</textarea>' +
+    '<div class="qstep"><b>3</b>' + esc(tx('step3')) + '</div>' + feelHTML() +
+    '<div class="qstep"><b>4</b>' + esc(tx('step4')) + '</div><div class="zone-chips">' + zones + '</div>';
+  renderComposerLabels();
+}
+function feelHTML() {
+  var v = quick.sentiment, s = v ? SENTS[v] : null;
+  return '<div class="feel' + (v ? '' : ' unset') + '" id="feelBox">' +
+    '<div class="feel-now"><span class="feel-face" id="feelFace">' + (s ? s.face : '👆') + '</span><span class="feel-label" id="feelLabel">' + esc(s ? feelLabel(v) : tx('swipe')) + '</span></div>' +
+    '<input type="range" min="1" max="5" step="1" value="' + (v || 3) + '" class="feel-range" id="feelRange" aria-label="' + esc(tx('step3')) + '" oninput="onFeel(this.value)" onchange="onFeel(this.value)">' +
+    '<div class="feel-scale">' + [1, 2, 3, 4, 5].map(function (i) { return '<button onclick="onFeel(' + i + ')" aria-label="' + esc(feelLabel(i)) + '">' + SENTS[i].face + '</button>'; }).join('') + '</div></div>';
+}
+function onFeel(v) {
+  v = +v; quick.sentiment = v;
+  $('feelBox').classList.remove('unset');
+  $('feelFace').textContent = SENTS[v].face;
+  $('feelLabel').textContent = feelLabel(v);
+  $('feelRange').value = v;
+}
+function toggleQuickTag(k) {
+  var i = quick.tags.indexOf(k);
+  if (i !== -1) quick.tags.splice(i, 1);
+  else if (quick.tags.length >= 3) { toast(tx('max3')); return; }
+  else quick.tags.push(k);
+  if (navigator.vibrate) navigator.vibrate(15);
+  renderQuick();
+}
+function pickZone(i) { quick.zone = quick.zone === ZONES[i] ? '' : ZONES[i]; renderQuick(); }
+function speechLangCode() { return state.lang === 'de' ? 'de-DE' : 'en-US'; }
+function speechError(code) {
+  if (code === 'not-allowed' || code === 'service-not-allowed') return tx('micBlocked');
+  if (code === 'no-speech') return tx('noSpeechHeard');
+  if (code === 'network') return tx('micNetwork');
+  if (code === 'aborted') return '';
+  return tx('micError') + ' (' + code + ')';
+}
+var qRec = null, qRecOn = false;
+function toggleQuickMic() {
+  if (!SR) { toast(tx('noSpeech')); if ($('qVoiceText')) $('qVoiceText').focus(); return; }
+  if (qRecOn && qRec) { qRec.stop(); return; }
+  var base = quick.voice ? quick.voice.replace(/\s+$/, '') + ' ' : '';
+  qRec = new SR(); qRec.lang = speechLangCode(); qRec.interimResults = true; qRec.continuous = false;
+  qRec.onresult = function (e) {
+    var txt = ''; for (var i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
+    quick.voice = base + txt;
+    var t = $('qVoiceText'); if (t) { t.value = quick.voice; t.classList.add('has'); }
+  };
+  qRec.onerror = function (e) { var m = speechError(e.error); if (m) toast(m); };
+  qRec.onend = function () { qRecOn = false; updateQuickMic(); };
+  try { qRec.start(); qRecOn = true; updateQuickMic(); if (navigator.vibrate) navigator.vibrate(30); } catch (x) { toast(tx('noSpeech')); }
+}
+function updateQuickMic() {
+  var b = $('qMicBtn'); if (!b) return;
+  b.classList.toggle('recording', qRecOn);
+  b.querySelector('span').textContent = qRecOn ? tx('listening') : tx('speak');
+}
+function submitQuick() {
+  var voice = (quick.voice || '').trim();
+  if (!quick.tags.length && !voice && !state.media) { toast(tx('needOne')); return; }
+  if (qRecOn && qRec) qRec.stop();
+  var btn = $('quickSend'); btn.disabled = true; btn.textContent = tx('sending');
+  api('/api/posts', { tags: quick.tags, sentiment: quick.sentiment, zone: quick.zone, content: voice,
+    media_url: state.media && state.media.url, media_type: state.media && state.media.type })
+    .then(function () {
+      quick = { tags: [], sentiment: null, zone: '', voice: '' };
+      clearMedia(); renderQuick(); btn.disabled = false; showSent();
+      if (state.sort !== 'latest') setSort('latest'); else loadFeed();
+    })
+    .catch(function (e) { btn.disabled = false; btn.textContent = tx('send'); toast(e.message); });
+}
+function showSent() {
+  $('sentText').textContent = tx('sent');
+  $('sentOverlay').classList.add('show');
+  if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+  setTimeout(function () { $('sentOverlay').classList.remove('show'); }, 1800);
+}
+var dRec = null, dOn = false;
+function dictate(inputId, btnId) {
+  var input = $(inputId), btn = $(btnId);
+  if (!SR) { toast(tx('noSpeech')); input.focus(); return; }
+  if (dOn && dRec) { dRec.stop(); return; }
+  var base = input.value ? input.value.replace(/\s+$/, '') + ' ' : '';
+  dRec = new SR(); dRec.lang = speechLangCode(); dRec.interimResults = true; dRec.continuous = false;
+  dRec.onresult = function (e) {
+    var txt = ''; for (var i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
+    input.value = base + txt; input.dispatchEvent(new Event('input'));
+  };
+  dRec.onerror = function (e) { var m = speechError(e.error); if (m) toast(m); };
+  dRec.onend = function () { dOn = false; if (btn) btn.classList.remove('recording'); };
+  try { dRec.start(); dOn = true; if (btn) btn.classList.add('recording'); } catch (x) { toast(tx('noSpeech')); }
+}
+function defaultBig() {
+  if (ME.isOrganizer || ME.role === 'director') return false;
+  return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+}
+function applyBig(on) {
+  document.body.classList.toggle('big', on);
+  $('bigBtn').classList.toggle('on', on);
+  $('bigBtn').setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+function toggleBig(force) {
+  var on = typeof force === 'boolean' ? force : !document.body.classList.contains('big');
+  applyBig(on);
+  try { localStorage.setItem('bp_big', on ? '1' : '0'); } catch (e) {}
+  loadSettings();
+}
+function initBig() {
+  var v = null; try { v = localStorage.getItem('bp_big'); } catch (e) {}
+  applyBig(v === null ? defaultBig() : v === '1');
+}
+function showZeroLog() {
+  $('zlCard').innerHTML = '<h3>' + ICON.shield + esc(tx('zlTitle')) + '</h3><ul class="zl-list">' +
+    ['zl1', 'zl2', 'zl3', 'zl4'].map(function (k) { return '<li>' + esc(tx(k)) + '</li>'; }).join('') + '</ul>' +
+    '<p class="zl-note">' + esc(tx('zl5')) + '</p><button class="btn-primary zl-ok" onclick="$(\'zlModal\').classList.remove(\'show\')">' + esc(tx('zlClose')) + '</button>';
+  $('zlModal').classList.add('show');
+}
+
 function loadInsights() {
   return api('/api/insights').then(function (d) { state.insights = d; renderThemeFilter(); renderInsightsPanel(); });
 }
@@ -321,10 +585,12 @@ function renderInsightsPanel() {
       '<div class="ins-stats"><div class="ins-stat"><b>' + d.total_posts + '</b><span>concerns</span></div>' +
       '<div class="ins-stat"><b>' + d.participants + '</b><span>joined</span></div>' +
       '<div class="ins-stat"><b>' + d.de_share + '%</b><span>in German</span></div></div>' +
+      (d.tag_totals && d.tag_totals.length ? '<div class="ins-section">Most reported (quick reports)</div><div class="qchips">' +
+        d.tag_totals.slice(0, 6).map(function (kv) { var t = QT[kv[0]]; return t ? '<span class="qchip sm" style="--tc:' + (THEMES[t.theme] || THEMES.other).color + '"><span class="qchip-i">' + t.icon + '</span>' + esc(tagLabel(kv[0])) + ' <b>×' + kv[1] + '</b></span>' : ''; }).join('') + '</div>' : '') +
       '<div class="ins-section">Themes by weighted impact</div>' +
       d.themes.map(function (t) {
         return '<div class="ins-theme" style="border-left-color:' + t.color + '" onclick="setThemeFilter(\'' + t.key + '\')">' +
-          '<div class="ins-theme-top"><span class="ins-theme-name">' + esc(t.label) + '</span><span class="ins-theme-score" style="color:' + t.color + '">' + t.score + '</span></div>' +
+          '<div class="ins-theme-top"><span class="ins-theme-name">' + esc(themeLabel(t.key)) + '</span><span class="ins-theme-score" style="color:' + t.color + '">' + t.score + '</span></div>' +
           '<div class="mixbar" style="height:4px;margin-top:6px"><span style="width:' + (100 * t.score / max) + '%;background:' + t.color + '"></span></div>' +
           '<div class="ins-theme-sum">' + esc(t.summary) + ' · ' + t.support + ' "me too"</div>' +
           mixBar(t.role_mix) + '</div>';
@@ -493,7 +759,7 @@ function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(e
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 var rec = null, isRecording = false;
 function toggleRecording() {
-  if (!SR) { toast('Speech input needs Chrome, Edge or Safari'); return; }
+  if (!SR) { toast(tx('noSpeech')); $('chatInput').focus(); return; }
   if (isRecording) { rec.stop(); return; }
   var input = $('chatInput'), base = input.value ? input.value + ' ' : '';
   rec = new SR(); rec.lang = $('speechLang').value; rec.interimResults = true; rec.continuous = false;
@@ -501,9 +767,9 @@ function toggleRecording() {
     var txt = ''; for (var i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
     input.value = base + txt; autoResize(input); state.pendingVoice = true;
   };
-  rec.onerror = function (e) { toast('Mic: ' + e.error); };
+  rec.onerror = function (e) { var m = speechError(e.error); if (m) toast(m); };
   rec.onend = function () { setRecUI(false); };
-  rec.start(); setRecUI(true);
+  try { rec.start(); setRecUI(true); } catch (x) { toast(tx('noSpeech')); }
 }
 function setRecUI(on) {
   isRecording = on;
@@ -530,8 +796,148 @@ var FACES = [{ e: '😟', l: 'Very uneasy' }, { e: '🙁', l: 'Uneasy' }, { e: '
 var pollWeighted = false;
 var surveyDraft = { heard: null, plan: null };
 
+var clockOffset = 0;
 function loadTownHall() {
-  return api('/api/townhall').then(function (d) { state.th = d; renderTownHall(); updatePhaseUI(); });
+  return api('/api/townhall').then(function (d) {
+    state.th = d;
+    if (d.clock) clockOffset = d.clock.server_now * 1000 - Date.now();
+    renderTownHall(); updatePhaseUI();
+  });
+}
+function clockNow() { return (Date.now() + clockOffset) / 1000; }
+function elapsedMin() {
+  var th = state.th, c = th && th.clock;
+  if (!c || !c.started) return 0;
+  var end = th.phase === 'after' && c.ended ? c.ended : clockNow();
+  return Math.max(0, (end - c.started) / 60);
+}
+function fmtMin(m) { var s = Math.max(0, Math.floor(m * 60)); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+function renderClock() {
+  var th = state.th, el = $('thClock'); if (!th || !el) return;
+  if (th.phase === 'before' || !th.clock.started) {
+    el.innerHTML = '<span class="clk-big idle">60:00</span><span class="clk-sub">' + (ME.isOrganizer ? 'starts when you go live' : 'starts soon') + '</span>';
+  } else {
+    var e = elapsedMin(), rem = Math.max(0, th.clock.duration - e);
+    var warn = th.phase === 'live' && rem <= 15;
+    el.innerHTML = '<span class="clk-big' + (warn ? ' warn' : '') + '">' + fmtMin(rem) + '</span><span class="clk-sub">' +
+      (th.phase === 'after' ? 'ended after ' + Math.round(e) + ' min' : 'left · ' + Math.floor(e) + ' min in') + '</span>';
+  }
+  renderAgenda();
+  renderNowBanner();
+}
+function renderAgenda() {
+  var el = $('agendaBar'); if (!el || !state.th) return;
+  var live = state.th.phase !== 'before' && state.th.clock.started;
+  var e = live ? elapsedMin() : -1, cards = state.th.cards || [];
+  el.innerHTML = AGENDA.map(function (s) {
+    var label = s[3];
+    if (/^c[123]$/.test(s[2])) { var c = cards[+s[2].charAt(1) - 1]; if (c) label = c.label; }
+    var cur = e >= s[0] && e < s[1], done = e >= s[1];
+    return '<div class="ag-seg' + (cur ? ' cur' : '') + (done ? ' done' : '') + '" style="flex:' + (s[1] - s[0]) + '" title="' + s[0] + '–' + s[1] + ' min · ' + esc(label) + '"><span>' + esc(label) + '</span></div>';
+  }).join('') + (e >= 0 ? '<div class="ag-now" style="left:calc(' + Math.min(100, e / 60 * 100) + '% - 1px)"></div>' : '');
+}
+function renderNowBanner() {
+  var th = state.th, el = $('nowBanner'); if (!el || !th) return;
+  var f = th.focus;
+  if (!f || th.phase !== 'live') { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  el.style.setProperty('--tc', f.color);
+  var mins = Math.max(0, Math.floor((clockNow() - f.started) / 60));
+  el.innerHTML = '<span class="now-dot"></span><span class="now-label">' + esc(tx('nowDiscussing')) + '</span><b>' + esc(themeLabel(f.key)) + '</b>' +
+    (ME.isOrganizer ? '<span class="now-min">' + mins + ' min</span><button class="btn-ghost sm" onclick="setFocus(\'\')">Clear</button>'
+      : '<span class="now-hint">' + esc(tx('nowHint')) + '</span>');
+}
+function setFocus(key) {
+  api('/api/townhall/focus', { theme: key }).then(function () { if (key) toast('Discussing now: ' + themeLabel(key)); }).catch(function (e) { toast(e.message); });
+}
+function renderFocus() {
+  var el = $('focusCards'); if (!el) return;
+  var th = state.th, cards = th.cards || [];
+  $('globalPrompts').innerHTML = (th.prompts || []).map(function (p) {
+    return '<div class="gprompt">' + ICON.spark + '<span>' + esc(p) + '</span></div>';
+  }).join('');
+  el.innerHTML = cards.map(function (c, i) {
+    var tags = (c.tag_counts || []).slice(0, 3).map(function (kv) {
+      var t = QT[kv[0]]; return t ? '<span class="qchip sm" style="--tc:' + c.color + '"><span class="qchip-i">' + t.icon + '</span>' + esc(t.en) + ' <b>×' + kv[1] + '</b></span>' : '';
+    }).join('');
+    var feel = c.sentiment_avg ? '<span class="fstat">' + SENTS[Math.min(5, Math.max(1, Math.round(c.sentiment_avg)))].face + ' ' + c.sentiment_avg + '/5</span>' : '';
+    var acts = (c.actions || []).map(function (a) {
+      return '<div class="fact"><span class="status-pill status-' + esc(a.status) + '">' + esc(a.status) + '</span>' + esc(a.title) + ' <small>✓' + a.agree + ' · ✋' + a.not_yet + '</small></div>';
+    }).join('');
+    return '<div class="fcard' + (c.is_focus ? ' focus' : '') + '" style="--tc:' + c.color + '">' +
+      '<div class="fhead"><span class="frank">' + (i + 1) + '</span><span class="ftitle">' + esc(c.label) + '</span><span class="fscore" title="Role-weighted priority">' + c.score + '</span></div>' +
+      '<div class="fstats"><span class="fstat">' + c.posts + ' reports</span><span class="fstat">' + c.support + ' me too</span>' +
+        '<span class="fstat">' + c.line_share + '% line workers</span>' + feel + (c.recent ? '<span class="fstat rise">+' + c.recent + ' in 15 min</span>' : '') + '</div>' +
+      '<div class="fsum"><span class="fsum-tag">' + (c.summary_engine === 'llm' ? 'AI summary' : 'Summary') + '</span>' + esc(c.summary_text) + '</div>' +
+      (tags ? '<div class="qchips">' + tags + '</div>' : '') +
+      (acts ? '<div class="facts">' + acts + '</div>' : '') +
+      '<div class="fprompts">' + (c.prompts || []).map(function (p) { return '<div class="fprompt">' + esc(p) + '</div>'; }).join('') + '</div>' +
+      '<div class="factions">' + (c.is_focus ? '<span class="fnow">● Discussing now</span>' : '<button class="btn-primary sm" onclick="setFocus(\'' + c.key + '\')">Discuss now</button>') +
+        (th.charter_locked ? '' : '<button class="btn-ghost sm" onclick="prefillAction(\'' + c.key + '\')">+ Turn into action</button>') + '</div>' +
+    '</div>';
+  }).join('') || '<div class="feed-empty">No concerns yet.</div>';
+  var rest = (th.top_concerns || []).slice(3);
+  $('focusMore').innerHTML = rest.length ? 'Also raised: ' + rest.map(function (t) {
+    return '<span class="more-item" onclick="setFocus(\'' + t.key + '\')">' + esc(t.label) + ' <b>' + t.score + '</b></span>';
+  }).join(' · ') : '';
+}
+function renderAgreement() {
+  var el = $('agreementCard'), a = state.th && state.th.agreement; if (!el || !a) return;
+  var de = state.lang === 'de';
+  var head = '<div class="th-card-head"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7"/><path d="M14.5 3.5l6 6L13 17H7v-6z"/></svg>' +
+    '<h3>' + esc(tx('agTitle')) + '</h3><span class="sub">' + esc(tx('agSub')) + '</span>' +
+    '<div class="right">' + (a.locked ? '<span class="lock-pill">' + ICON.lock + esc(tx('agLocked')) + '</span>' : '') + '</div></div>';
+  if (!a.open && !a.locked) {
+    el.classList.remove('open');
+    el.innerHTML = head + (ME.isOrganizer
+      ? '<div class="ag-closed"><p>Opens in the final 15 minutes. The union reps, plant management and you agree on concrete trial rules (speed cap, trial length, checkpoints) and co-sign the action charter. Once all three groups sign, the charter is locked.</p><button class="btn-primary" onclick="openAgreement(true)">Open Co-Design Agreement</button></div>'
+      : '<div class="engine-note ag-later">' + esc(tx('agLater')) + '</div>');
+    return;
+  }
+  el.classList.add('open');
+  var editable = ME.isOrganizer && !a.locked;
+  var rows = a.params.map(function (p) {
+    var label = de ? p.label_de : p.label, other = de ? p.label : p.label_de;
+    var shown = de ? p.display_de : p.display, ctl;
+    if (editable && p.kind === 'number') {
+      ctl = '<button class="step-btn" onclick="stepParam(' + p.id + ',-1)" aria-label="less">−</button><span class="ag-val">' + esc(shown) + '</span><button class="step-btn" onclick="stepParam(' + p.id + ',1)" aria-label="more">+</button>';
+    } else if (editable) {
+      ctl = '<div class="seg">' + p.options.map(function (o) {
+        return '<button class="' + (o.v === p.value ? 'on' : '') + '" onclick="setParam(' + p.id + ',\'' + o.v + '\')">' + esc(de ? o.de : o.en) + '</button>';
+      }).join('') + '</div>';
+    } else {
+      ctl = '<span class="ag-val">' + esc(shown) + '</span>';
+    }
+    var votes = a.locked ? '<span class="ag-tally">✓ ' + p.ok + ' · ✋ ' + p.not_yet + '</span>' :
+      '<div class="ag-votes"><button class="vote-btn agree' + (p.my_vote === 'ok' ? ' on' : '') + '" onclick="voteParam(' + p.id + ',\'ok\')">✓ ' + esc(tx('agWorks')) + ' ' + p.ok + '</button>' +
+      '<button class="vote-btn not_yet' + (p.my_vote === 'not_yet' ? ' on' : '') + '" onclick="voteParam(' + p.id + ',\'not_yet\')">✋ ' + esc(tx('agNotYet')) + ' ' + p.not_yet + '</button></div>';
+    return '<div class="ag-row"><div class="ag-label">' + esc(label) + '<small>' + esc(other) + '</small></div><div class="ag-value">' + ctl + '</div>' + votes + '</div>';
+  }).join('');
+  var signers = a.signers.map(function (s) {
+    return '<div class="signer' + (s.signed ? ' done' : '') + '"><span class="sig-check">' + (s.signed ? '✓' : '') + '</span><div><b>' + esc(de ? s.label_de : s.label) + '</b><small>' +
+      (s.signed ? esc(s.handle) + ' · ' + esc(s.at) : esc(tx('agWaiting'))) + '</small></div></div>';
+  }).join('');
+  var mine = a.signers.filter(function (s) { return s.mine; })[0];
+  var signBtn = a.can_sign ? '<button class="btn-primary sign-btn" onclick="signAgreement()">✍ ' + esc(tx('agSign')) + '</button>' :
+    (mine && !a.locked ? '<span class="signed-note">✓ ' + esc(tx('agYouSigned')) + '</span>' : '');
+  var notice = !a.locked && a.notice ? '<div class="ag-notice">' + esc(a.notice === 'charter_changed' ? tx('agCleared2') : tx('agCleared')) + '</div>' : '';
+  var lockInfo = a.locked ? '<div class="ag-locked">' + ICON.lock + '<div>' + esc(tx('agLockedLong')) + ' ' + esc(a.locked_at) +
+    '<br><span class="hash">SHA-256 ' + esc((a.hash || '').slice(0, 16)) + '…' + esc((a.hash || '').slice(-8)) + '</span> · <a href="/charter" target="_blank">' + esc(tx('agOpen')) + ' ↗</a></div></div>' : '';
+  el.innerHTML = head + notice + '<div class="ag-params">' + rows + '</div>' +
+    '<div class="ag-sign"><div class="signers">' + signers + '</div>' + signBtn + '</div>' + lockInfo +
+    (editable ? '<div class="engine-note ag-foot">Changing a value or an action clears all signatures, so every group signs the final version. <a href="/charter" target="_blank">Preview charter ↗</a></div>' : '');
+}
+function openAgreement(open) { api('/api/agreement/open', { open: open }).catch(function (e) { toast(e.message); }); }
+function setParam(id, value) { api('/api/agreement/params/' + id, { value: value }).catch(function (e) { toast(e.message); }); }
+function stepParam(id, dir) {
+  var p = state.th.agreement.params.filter(function (x) { return x.id === id; })[0]; if (!p) return;
+  var v = Math.max(p.min, Math.min(p.max, parseFloat(p.value) + dir * p.step));
+  if (String(v) !== String(p.value)) setParam(id, v);
+}
+function voteParam(id, v) { api('/api/agreement/params/' + id + '/vote', { vote: v }).catch(function (e) { toast(e.message); }); }
+function signAgreement() {
+  if (!confirm(tx('agConfirm'))) return;
+  api('/api/agreement/sign', {}).then(function (d) { toast(d.locked ? tx('agLocked') : tx('agYouSigned')); }).catch(function (e) { toast(e.message); });
 }
 function updatePhaseUI() {
   var th = state.th; if (!th) return;
@@ -552,26 +958,29 @@ function renderTownHall() {
     return (i ? '<span class="step-sep"></span>' : '') + '<span class="' + cls + '"><span class="n">' + (i < idx ? '✓' : i + 1) + '</span><span class="t">' + s[1] + '</span></span>';
   }).join('');
 
-  var max = Math.max.apply(null, th.top_concerns.map(function (t) { return t.score; }).concat([1]));
-  $('concernList').innerHTML = th.top_concerns.map(function (t, i) {
-    var total = 0; Object.keys(t.role_mix).forEach(function (k) { total += t.role_mix[k]; });
-    var seg = Object.keys(ROLES).filter(function (k) { return t.role_mix[k]; }).map(function (k) {
-      return '<span style="width:' + (100 * t.score / max) * (t.role_mix[k] / total) + '%;background:' + ROLES[k].color + '"></span>';
+  var top = th.top_concerns.slice(0, 5);
+  var max = Math.max.apply(null, top.map(function (t) { return t.score; }).concat([1]));
+  if ($('concernList')) {
+    $('concernList').innerHTML = top.map(function (t, i) {
+      var total = 0; Object.keys(t.role_mix).forEach(function (k) { total += t.role_mix[k]; });
+      var seg = Object.keys(ROLES).filter(function (k) { return t.role_mix[k]; }).map(function (k) {
+        return '<span style="width:' + (100 * t.score / max) * (t.role_mix[k] / total) + '%;background:' + ROLES[k].color + '"></span>';
+      }).join('');
+      var focus = th.focus && th.focus.key === t.key && th.phase === 'live';
+      return '<div class="concern' + (focus ? ' is-focus' : '') + '"><span class="concern-rank">#' + (i + 1) + '</span>' +
+        '<span class="concern-title"><span class="theme-dot" style="background:' + t.color + '"></span>' + esc(themeLabel(t.key)) + (focus ? '<span class="now-chip">' + esc(tx('nowDiscussing')) + '</span>' : '') + '</span>' +
+        '<span class="concern-score">' + t.score + '</span>' +
+        '<div class="concern-bar">' + seg + '</div>' +
+        '<div class="concern-meta">' + esc(t.summary) + ' · ' + t.support + ' "me too"</div>' +
+        '<div class="concern-quote">“' + esc(t.top_quote) + '”</div>' +
+      '</div>';
+    }).join('') || '<div class="feed-empty">No concerns posted yet.</div>';
+    $('roleLegend').innerHTML = Object.keys(ROLES).filter(function (k) { return k !== 'organizer'; }).map(function (k) {
+      return '<span><i style="background:' + ROLES[k].color + '"></i>' + esc(ROLES[k].label) + '</span>';
     }).join('');
-    return '<div class="concern"><span class="concern-rank">#' + (i + 1) + '</span>' +
-      '<span class="concern-title"><span class="theme-dot" style="background:' + t.color + '"></span>' + esc(t.label) + '</span>' +
-      '<span class="concern-score">' + t.score + '</span>' +
-      '<div class="concern-bar">' + seg + '</div>' +
-      '<div class="concern-meta">' + esc(t.summary) + ' · ' + t.support + ' "me too"</div>' +
-      '<div class="concern-quote">“' + esc(t.top_quote) + '”</div>' +
-      (ME.isOrganizer ? '<button class="concern-add" onclick="prefillAction(\'' + t.key + '\')">+ Turn into action</button>' : '') +
-    '</div>';
-  }).join('') || '<div class="feed-empty">No concerns posted yet.</div>';
-  $('roleLegend').innerHTML = Object.keys(ROLES).filter(function (k) { return k !== 'organizer'; }).map(function (k) {
-    return '<span><i style="background:' + ROLES[k].color + '"></i>' + esc(ROLES[k].label) + '</span>';
-  }).join('');
+  }
 
-  renderPoll(); renderPulse(); renderReactions(); renderCharter(); renderSurvey();
+  renderClock(); renderFocus(); renderPoll(); renderPulse(); renderReactions(); renderCharter(); renderAgreement(); renderSurvey();
   if (state.mode === 'townhall') renderLivePanel();
 }
 function renderPoll() {
@@ -624,28 +1033,36 @@ function floatEmoji(e) {
   document.body.appendChild(s); setTimeout(function () { s.remove(); }, 1700);
 }
 function renderCharter() {
-  var acts = state.th.actions;
+  var acts = state.th.actions, locked = state.th.charter_locked;
+  $('charterSub').innerHTML = locked ? '<span class="lock-pill">' + ICON.lock + esc(tx('agLocked')) + '</span>' : 'written live — everyone can agree or say "not yet"';
+  if ($('addActionBtn')) $('addActionBtn').classList.toggle('hidden', locked);
+  if (locked && $('actionForm')) $('actionForm').classList.remove('show');
   $('charterBody').innerHTML = acts.map(function (a) {
-    var status = ME.isOrganizer
+    var status = ME.isOrganizer && !locked
       ? '<select class="mini-select" onchange="setActionStatus(' + a.id + ',this.value)">' + ['proposed', 'agreed', 'unresolved'].map(function (s) {
           return '<option value="' + s + '"' + (a.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select>'
-      : '<span class="status-pill status-' + a.status + '">' + a.status + '</span>';
-    return '<tr><td><span class="tag" style="background:' + a.theme_color + '1A;color:' + a.theme_color + '">' + esc(a.theme_label) + '</span></td>' +
+      : '<span class="status-pill status-' + a.status + '">' + esc(statusWord(a.status)) + '</span>';
+    var votes = locked
+      ? '<span class="ag-tally">✓ ' + a.agree + ' · ✋ ' + a.not_yet + '</span>'
+      : '<div class="vote-btns"><button class="vote-btn agree' + (a.my_vote === 'agree' ? ' on' : '') + '" onclick="voteAction(' + a.id + ',\'agree\')">✓ Agree ' + a.agree + '</button>' +
+        '<button class="vote-btn not_yet' + (a.my_vote === 'not_yet' ? ' on' : '') + '" onclick="voteAction(' + a.id + ',\'not_yet\')">Not yet ' + a.not_yet + '</button></div>';
+    return '<tr><td><span class="tag" style="background:' + a.theme_color + '1A;color:' + a.theme_color + '">' + esc(themeLabel(a.theme)) + '</span></td>' +
       '<td class="c-title"><div class="charter-title">' + esc(a.title) + '</div></td>' +
       '<td style="color:var(--text-secondary)">' + esc(a.owner) + '</td><td style="color:var(--text-secondary)">' + esc(a.due) + '</td>' +
-      '<td>' + status + '</td>' +
-      '<td><div class="vote-btns"><button class="vote-btn agree' + (a.my_vote === 'agree' ? ' on' : '') + '" onclick="voteAction(' + a.id + ',\'agree\')">✓ Agree ' + a.agree + '</button>' +
-      '<button class="vote-btn not_yet' + (a.my_vote === 'not_yet' ? ' on' : '') + '" onclick="voteAction(' + a.id + ',\'not_yet\')">Not yet ' + a.not_yet + '</button></div></td></tr>';
+      '<td>' + status + '</td><td>' + votes + '</td></tr>';
   }).join('') || '<tr><td colspan="6" class="engine-note" style="padding:14px 8px">No actions yet — the Product Team adds them live during the meeting.</td></tr>';
   if ($('actTheme') && !$('actTheme').options.length) {
-    $('actTheme').innerHTML = Object.keys(THEMES).map(function (k) { return '<option value="' + k + '">' + esc(THEMES[k].label) + '</option>'; }).join('') + '<option value="other">Other</option>';
+    $('actTheme').innerHTML = themeKeys().map(function (k) { return '<option value="' + k + '">' + esc(THEMES[k].label) + '</option>'; }).join('');
   }
 }
 function voteAction(id, v) { api('/api/townhall/actions/' + id + '/vote', { vote: v }); }
 function setActionStatus(id, s) { api('/api/townhall/actions/' + id + '/status', { status: s }); }
 function toggleActionForm() { $('actionForm').classList.toggle('show'); }
 function prefillAction(theme) {
-  $('actionForm').classList.add('show'); $('actTheme').value = theme; $('actTitle').focus();
+  if (state.th && state.th.charter_locked) return;
+  $('actionForm').classList.add('show'); $('actTheme').value = theme;
+  scrollPanelTo($('actionForm'));
+  setTimeout(function () { $('actTitle').focus(); }, 350);
 }
 function addAction() {
   api('/api/townhall/actions', { theme: $('actTheme').value, title: $('actTitle').value, owner: $('actOwner').value, due: $('actDue').value })
@@ -658,8 +1075,16 @@ function downloadCharter() {
     lines.push((i + 1) + '. **' + a.title + '**', '   - Theme: ' + a.theme_label, '   - Owner: ' + (a.owner || '—') + ' · Due: ' + (a.due || '—'),
       '   - Status: ' + a.status + ' · Agree ' + a.agree + ' / Not yet ' + a.not_yet, '');
   });
+  var ag = th.agreement;
+  if (ag && ag.params.length) {
+    lines.push('', '## Co-Design Agreement — trial rules');
+    ag.params.forEach(function (p) { lines.push('- ' + p.label + ': **' + p.display + '**'); });
+    lines.push('', '## Signatures');
+    ag.signers.forEach(function (s) { lines.push('- ' + s.label + ': ' + (s.signed ? s.handle + ' · ' + s.at : 'not signed')); });
+    if (ag.locked) lines.push('', 'Locked on ' + ag.locked_at + ' · SHA-256 `' + ag.hash + '`');
+  }
   lines.push('', '## Top concerns at the time of export');
-  th.top_concerns.forEach(function (t, i) { lines.push((i + 1) + '. ' + t.label + ' — ' + t.summary); });
+  th.top_concerns.slice(0, 5).forEach(function (t, i) { lines.push((i + 1) + '. ' + t.label + ' — ' + t.summary); });
   var blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
   var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'bridgepulse-action-charter.md'; a.click();
 }
@@ -706,9 +1131,10 @@ function toggleCaptions() {
       if (e.results[i].isFinal) { sendCaption(txt, true); setInterim(''); } else setInterim(txt);
     }
   };
-  capRec.onerror = function (e) { toast('Mic: ' + e.error); };
+  capRec.onerror = function (e) { var m = speechError(e.error); if (m) toast(m); };
   capRec.onend = function () { if (capOn) { try { capRec.start(); } catch (x) {} } else setCapUI(false); };
-  capOn = true; capRec.start(); setCapUI(true);
+  capOn = true;
+  try { capRec.start(); setCapUI(true); } catch (x) { capOn = false; toast(tx('noSpeech')); }
 }
 function setCapUI(on) { $('capMicBtn').classList.toggle('recording', on); $('capMicLabel').textContent = on ? 'Stop' : 'Speak'; }
 function setInterim(txt) {
@@ -753,24 +1179,32 @@ function loadSettings() {
         var ctl;
         if (it.type === 'language') {
           ctl = '<div class="lang-switch" style="display:flex"><button class="' + (state.lang === 'de' ? 'active' : '') + '" onclick="setLanguage(\'de\')">Deutsch</button><button class="' + (state.lang === 'en' ? 'active' : '') + '" onclick="setLanguage(\'en\')">English</button></div>';
+        } else if (it.type === 'big') {
+          ctl = '<label class="toggle-switch"><input type="checkbox"' + (document.body.classList.contains('big') ? ' checked' : '') + ' onchange="toggleBig(this.checked)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>';
         } else {
           ctl = '<label class="toggle-switch' + (it.locked ? ' locked' : '') + '" title="' + (it.locked ? 'Always on for privacy' : '') + '"><input type="checkbox"' + (it.default ? ' checked' : '') + (it.locked ? ' disabled' : '') + '><div class="toggle-track"></div><div class="toggle-thumb"></div></label>';
         }
         return '<div class="settings-row"><span class="settings-label">' + esc(it.label) + '</span>' + ctl + '</div>';
       }).join('') + '</div>';
-    }).join('');
+    }).join('') + '<div class="settings-section"><a class="btn-ghost signout-btn" href="/logout">' + esc(tx('signOut')) + ' · ' + esc(personName({ name: ME.name, role: ME.role })) + '</a></div>';
   });
 }
 
 (function init() {
   $('langDe').classList.toggle('active', state.lang === 'de');
   $('langEn').classList.toggle('active', state.lang === 'en');
+  initBig();
   var ts = $('themeSelect');
-  Object.keys(THEMES).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = THEMES[k].label; ts.appendChild(o); });
-  var o = document.createElement('option'); o.value = 'other'; o.textContent = 'Other'; ts.appendChild(o);
+  themeKeys().forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = THEMES[k].label; ts.appendChild(o); });
   try { new QRCode($('qrBox'), { text: BOOT.joinUrl, width: 128, height: 128, colorDark: '#0B3C5D', colorLight: '#ffffff' }); } catch (e) {}
   $('qrUrl').textContent = BOOT.joinUrl.replace(/^https?:\/\//, '');
+  $('speechLang').value = speechLangCode(); $('capLang').value = speechLangCode();
+  var cm = null; try { cm = localStorage.getItem('bp_cmode'); } catch (e) {}
+  renderQuick();
+  setComposerMode(cm === 'write' || cm === 'quick' ? cm : composerMode);
   loadFeed(); loadInsights(); loadTownHall(); loadContacts(); loadNotifications(); loadSettings();
   var saved = null; try { saved = localStorage.getItem('bp_mode'); } catch (e) {}
   switchMode(saved && $(saved + 'Panel') ? saved : 'square');
+  setInterval(function () { if (state.th && state.th.phase === 'live') { renderClock(); } }, 1000);
+  setInterval(function () { if (ME.isOrganizer && state.mode === 'townhall') loadTownHall(); }, 30000);
 })();
