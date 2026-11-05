@@ -150,6 +150,14 @@ def migrate_db():
     for name, kind in (('tags', 'TEXT'), ('sentiment', 'INTEGER')):
         if name not in cols:
             conn.execute('ALTER TABLE posts ADD COLUMN %s %s' % (name, kind))
+    action_cols = {r['name'] for r in conn.execute('PRAGMA table_info(actions)').fetchall()}
+    for name in ('title_de', 'owner_de', 'due_de'):
+        if name not in action_cols:
+            conn.execute('ALTER TABLE actions ADD COLUMN %s TEXT' % name)
+    poll_cols = {r['name'] for r in conn.execute('PRAGMA table_info(polls)').fetchall()}
+    for name in ('question_de', 'options_de'):
+        if name not in poll_cols:
+            conn.execute('ALTER TABLE polls ADD COLUMN %s TEXT' % name)
     conn.commit()
     conn.close()
 
@@ -303,13 +311,16 @@ def translate_fields(text):
 @app.route('/')
 @login_required
 def index():
-    themes = {k: {'label': v['label'], 'label_de': v['label_de'], 'color': v['color']} for k, v in bp.THEMES.items()}
+    themes = {k: {'label': v['label'], 'label_de': v['label_de'], 'color': v['color'], 'icon': v['icon']}
+              for k, v in bp.THEMES.items()}
     themes['other'] = {'label': bp.THEME_OTHER['label'], 'label_de': bp.THEME_OTHER['label_de'],
-                       'color': bp.THEME_OTHER['color']}
+                       'color': bp.THEME_OTHER['color'], 'icon': bp.THEME_OTHER['icon']}
     return render_template('index.html', user=current_user, zones=ZONES, themes=themes,
                            roles=bp.ROLES, join_url=join_url(), llm=bp.llm_available(),
                            quick_tags=bp.QUICK_TAGS, sentiments=bp.SENTIMENTS, agenda=bp.AGENDA,
-                           signer_roles=bp.SIGNER_ROLES)
+                           signer_roles=bp.SIGNER_ROLES,
+                           action_templates=bp.ACTION_TEMPLATES if current_user.is_organizer else {},
+                           poll_templates=bp.POLL_TEMPLATES if current_user.is_organizer else [])
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -379,8 +390,9 @@ def charter_locked():
 def actions_by_theme(conn):
     locked = charter_locked()
     out = {}
-    for a in conn.execute('SELECT theme, title, status FROM actions ORDER BY id').fetchall():
-        out.setdefault(a['theme'], {'title': a['title'], 'status': 'signed' if locked else a['status']})
+    for a in conn.execute('SELECT theme, title, title_de, status FROM actions ORDER BY id').fetchall():
+        out.setdefault(a['theme'], {'title': a['title'], 'title_de': a['title_de'] or a['title'],
+                                    'status': 'signed' if locked else a['status']})
     return out
 
 def serialize_post(conn, r, uid, theme_actions=None):
@@ -583,6 +595,7 @@ def compute_insights(conn):
         quote_post = texted[0] if texted else plist[0]
         themes.append({
             'key': key, 'label': meta['label'], 'label_de': meta.get('label_de', meta['label']), 'color': meta['color'],
+            'icon': meta.get('icon', ''),
             'score': round(sum(p['score'] for p in plist), 1),
             'posts': len(plist), 'support': sum(p['support'] for p in plist),
             'role_mix': role_mix,
@@ -594,7 +607,11 @@ def compute_insights(conn):
             'recent': recent,
             'summary': bp.summarize_theme(key, [{'role': p['author']['role'],
                                                  'supporter_roles': p['supporter_roles']} for p in plist]),
+            'summary_de': bp.summarize_theme(key, [{'role': p['author']['role'],
+                                                    'supporter_roles': p['supporter_roles']} for p in plist], 'de'),
             'top_quote': post_text_en(quote_post)[:180],
+            'top_quote_de': (quote_post['content_de'] or quote_post['content']
+                             or bp.tag_line(quote_post['tags'], 'de'))[:180],
             'top_post_id': quote_post['id'],
             '_texts': [post_text_en(p)[:300] for p in plist[:12]],
         })
@@ -743,7 +760,14 @@ def townhall_state(uid, is_org):
                 weighted[v['option_idx']] += bp.role_weight(v['role'])
         mine = conn.execute('SELECT option_idx FROM poll_votes WHERE poll_id = ? AND user_id = ?',
                             (poll['id'], uid)).fetchone()
-        poll_out = {'id': poll['id'], 'question': poll['question'], 'options': opts, 'counts': counts,
+        try:
+            opts_de = json.loads(poll['options_de'] or 'null') or opts
+        except (TypeError, ValueError):
+            opts_de = opts
+        if len(opts_de) != len(opts):
+            opts_de = opts
+        poll_out = {'id': poll['id'], 'question': poll['question'], 'options': opts,
+                    'question_de': poll['question_de'] or poll['question'], 'options_de': opts_de, 'counts': counts,
                     'weighted': [round(w, 1) for w in weighted], 'total': sum(counts),
                     'is_open': bool(poll['is_open']), 'my_vote': mine['option_idx'] if mine else None}
     pulses = conn.execute('SELECT value FROM pulses').fetchall()
@@ -762,7 +786,10 @@ def townhall_state(uid, is_org):
                             (a['id'], uid)).fetchone()
         meta = bp.theme_meta(a['theme'])
         actions.append({'id': a['id'], 'theme': a['theme'], 'theme_label': meta['label'], 'theme_color': meta['color'],
-                        'title': a['title'], 'owner': a['owner'], 'due': a['due'], 'status': a['status'],
+                        'theme_icon': meta.get('icon', ''),
+                        'title': a['title'], 'title_de': a['title_de'] or a['title'],
+                        'owner': a['owner'], 'owner_de': a['owner_de'] or a['owner'],
+                        'due': a['due'], 'due_de': a['due_de'] or a['due'], 'status': a['status'],
                         'agree': vd.get('agree', 0), 'not_yet': vd.get('not_yet', 0),
                         'my_vote': mine['vote'] if mine else None})
     my_survey = conn.execute('SELECT * FROM survey WHERE user_id = ?', (uid,)).fetchone()
@@ -790,6 +817,7 @@ def townhall_state(uid, is_org):
     recent_concern = sum(1 for ts, kind in reaction_log if kind == 'concern' and time.time() - ts <= 120)
     out = {
         'phase': phase, 'title': get_state('title', ''), 'when': get_state('when', ''),
+        'title_de': get_state('title_de') or get_state('title', ''), 'when_de': get_state('when_de') or get_state('when', ''),
         'poll': poll_out,
         'pulse': {'avg': avg, 'dist': dist, 'n': sum(dist), 'mine': my_pulse['value'] if my_pulse else None},
         'reactions': reaction_counts, 'actions': actions, 'survey': survey_out,
@@ -832,7 +860,8 @@ def focus_info():
     since = float(get_state('focus_started_at') or time.time())
     meta = bp.theme_meta(key)
     return {'key': key, 'label': meta['label'], 'label_de': meta.get('label_de', meta['label']),
-            'color': meta['color'], 'started': since, 'minutes': round((time.time() - since) / 60.0, 1)}
+            'color': meta['color'], 'icon': meta.get('icon', ''),
+            'started': since, 'minutes': round((time.time() - since) / 60.0, 1)}
 
 def build_cards(themes, actions, focus):
     cards = []
@@ -900,6 +929,7 @@ def charter_snapshot(conn):
         votes = {v['vote']: v['c'] for v in conn.execute(
             'SELECT vote, COUNT(*) c FROM action_votes WHERE action_id = ? GROUP BY vote', (a['id'],)).fetchall()}
         actions.append({'theme': bp.theme_meta(a['theme'])['label'], 'title': a['title'], 'owner': a['owner'],
+                        'title_de': a['title_de'] or a['title'], 'owner_de': a['owner_de'] or a['owner'],
                         'due': a['due'], 'status': a['status'],
                         'agree': votes.get('agree', 0), 'not_yet': votes.get('not_yet', 0)})
     sigs = {r['role']: r for r in conn.execute('SELECT * FROM agreement_signatures').fetchall()}
@@ -985,10 +1015,17 @@ def api_new_poll():
     opts = [o.strip() for o in data.get('options', []) if o and o.strip()]
     if not q or len(opts) < 2:
         return jsonify({'error': 'A question and at least two options are needed'}), 400
+    # Store a German version so workers can vote in their own language: from Priya's form, else from the
+    # matching ready-made poll, else the English text. No translation service.
+    tpl = bp.poll_template(q) or {}
+    q_de = (data.get('question_de') or '').strip() or tpl.get('de') or q
+    opts_de = [o.strip() for o in data.get('options_de', []) if o and o.strip()]
+    if len(opts_de) != len(opts):
+        opts_de = tpl.get('options_de') if tpl.get('options') == opts else opts
     conn = get_db()
     conn.execute('UPDATE polls SET is_open = 0')
-    conn.execute('INSERT INTO polls (question, options, is_open, created_at) VALUES (?,?,1,?)',
-                 (q, json.dumps(opts), now_str()))
+    conn.execute('INSERT INTO polls (question, options, question_de, options_de, is_open, created_at) VALUES (?,?,?,?,1,?)',
+                 (q, json.dumps(opts), q_de, json.dumps(opts_de), now_str()))
     conn.commit()
     conn.close()
     broadcast_th()
@@ -1054,10 +1091,18 @@ def api_add_action():
     title = (data.get('title') or '').strip()
     if not title:
         return jsonify({'error': 'Title required'}), 400
+    owner = (data.get('owner') or '').strip()
+    due = (data.get('due') or '').strip()
+    # Workers read the charter in German. The German text comes from Priya's form (a ready-made template or
+    # what she typed); if she typed a template title by hand, the template supplies it. No translation service.
+    tpl = bp.action_template(title) or {}
+    title_de = (data.get('title_de') or '').strip() or tpl.get('de') or title
+    owner_de = (data.get('owner_de') or '').strip() or (tpl.get('owner_de') if owner == tpl.get('owner') else '') or owner
+    due_de = (data.get('due_de') or '').strip() or (tpl.get('due_de') if due == tpl.get('due') else '') or due
     conn = get_db()
-    conn.execute('INSERT INTO actions (theme, title, owner, due, status, created_at) VALUES (?,?,?,?,?,?)',
-                 (data.get('theme') or 'other', title, (data.get('owner') or '').strip(),
-                  (data.get('due') or '').strip(), 'proposed', now_str()))
+    conn.execute('INSERT INTO actions (theme, title, title_de, owner, owner_de, due, due_de, status, created_at) '
+                 'VALUES (?,?,?,?,?,?,?,?,?)',
+                 (data.get('theme') or 'other', title, title_de, owner, owner_de, due, due_de, 'proposed', now_str()))
     conn.commit()
     conn.close()
     clear_signatures('charter_changed')

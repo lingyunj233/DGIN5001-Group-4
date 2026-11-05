@@ -10,7 +10,7 @@ ROLES = {
     'line_worker':    {'label': 'Line Worker',     'label_de': 'Bandarbeiter/in',      'weight': 1.5, 'color': '#2F7FB0'},
     'safety_officer': {'label': 'Safety Officer',  'label_de': 'Sicherheits\u00adfachkraft', 'weight': 1.3, 'color': '#E07A00'},
     'union_rep':      {'label': 'Union Rep',       'label_de': 'Betriebsrat',          'weight': 1.2, 'color': '#2F9E6E'},
-    'director':       {'label': 'Plant Director',  'label_de': 'Werksleitung',         'weight': 1.0, 'color': '#7C5CD6'},
+    'director':       {'label': 'Plant Director',  'label_de': 'Werksleitung',         'weight': 1.0, 'color': '#8A5A2B'},
     'organizer':      {'label': 'Product Team',    'label_de': 'Produktteam',       'weight': 0.0, 'color': '#0B3C5D'},
 }
 PUBLIC_ROLES = ['line_worker', 'safety_officer', 'union_rep', 'director']
@@ -60,7 +60,16 @@ THEMES = {
                'ziel', 'zielvorgabe', 'quote', 'druck', 'stückzahl', 'stückzahlen', 'vorgabe', 'leistung', 'chef'],
     },
 }
-THEME_OTHER = {'label': 'Other', 'label_de': 'Sonstiges', 'color': '#94A3B8'}
+THEME_OTHER = {'label': 'Other', 'label_de': 'Sonstiges', 'color': '#94A3B8', 'icon': '💬'}
+
+# Themes are identified by icon + name, never by colour: colour is reserved for
+# stakeholder groups (avatars, role badges) and for status (live, agreed, not yet).
+THEME_ICONS = {
+    'safety': '⛑️', 'pacing': '⏱️', 'jobs': '💼',
+    'codetermination': '⚖️', 'training': '🎓', 'targets': '📈',
+}
+for _k, _icon in THEME_ICONS.items():
+    THEMES[_k]['icon'] = _icon
 
 THEME_LABELS_DE = {
     'safety': 'Körperliche Sicherheit',
@@ -95,6 +104,97 @@ SENTIMENTS = {
     4: {'face': '🙂', 'en': 'OK', 'de': 'Okay'},
     5: {'face': '😊', 'en': 'Fine', 'de': 'Alles gut'},
 }
+
+# Ready-made bilingual charter actions and polls. The demo has no translation service for live content,
+# so Priya picks one of these (or types both languages herself) and workers see German straight away.
+ACTION_TEMPLATES = {
+    'safety': [
+        {'en': 'Mark dedicated AMR lanes in Hall 4 and cap AMR speed at 50% for a 2-week trial',
+         'de': 'Eigene AMR-Fahrspuren in Halle 4 markieren und AMR-Tempo für einen 2-wöchigen Test auf 50 % begrenzen',
+         'owner': 'Safety team + AMR implementation lead', 'owner_de': 'Sicherheitsteam + AMR-Projektleitung',
+         'due': 'Nov 7', 'due_de': '7. Nov.'},
+        {'en': 'Move every AMR emergency stop to chest height on both sides',
+         'de': 'Alle Not-Aus-Taster an den AMRs beidseitig auf Brusthöhe versetzen',
+         'owner': 'AMR implementation lead', 'owner_de': 'AMR-Projektleitung', 'due': 'Nov 10', 'due_de': '10. Nov.'},
+        {'en': 'Fit AMRs in Hall 3 with a louder warning signal and a flashing light',
+         'de': 'AMRs in Halle 3 mit lauterem Warnsignal und Blinklicht ausstatten',
+         'owner': 'Safety team', 'owner_de': 'Sicherheitsteam', 'due': 'Nov 14', 'due_de': '14. Nov.'},
+    ],
+    'pacing': [
+        {'en': 'Plan a 10-minute break every 2 hours during the trial',
+         'de': 'Während des Tests alle 2 Stunden 10 Minuten Pause einplanen',
+         'owner': 'Shift leads', 'owner_de': 'Schichtleitung', 'due': 'Nov 7', 'due_de': '7. Nov.'},
+        {'en': 'Keep the line cycle time unchanged until the works council has reviewed it',
+         'de': 'Taktzeit unverändert lassen, bis der Betriebsrat sie geprüft hat',
+         'owner': 'Plant director', 'owner_de': 'Werksleitung', 'due': 'Nov 21', 'due_de': '21. Nov.'},
+    ],
+    'jobs': [
+        {'en': 'Publish a written no-layoff & reskilling commitment for AMR-affected roles, co-signed with the works council',
+         'de': 'Schriftliche Zusage veröffentlichen: keine Kündigungen und Umschulung für betroffene Stellen, '
+               'mitunterzeichnet vom Betriebsrat',
+         'owner': 'Plant director + HR', 'owner_de': 'Werksleitung + Personalabteilung',
+         'due': 'Nov 30', 'due_de': '30. Nov.'},
+        {'en': 'Offer AMR operator and maintenance training to every affected worker',
+         'de': 'Allen betroffenen Beschäftigten eine Schulung zu AMR-Bedienung und -Wartung anbieten',
+         'owner': 'HR + training team', 'owner_de': 'Personalabteilung + Schulungsteam',
+         'due': 'Dec 15', 'due_de': '15. Dez.'},
+    ],
+    'codetermination': [
+        {'en': 'Publish which sensor and camera data the AMRs record, and who can see it',
+         'de': 'Offenlegen, welche Sensor- und Kameradaten die AMRs speichern und wer sie sehen darf',
+         'owner': 'AMR implementation lead + works council', 'owner_de': 'AMR-Projektleitung + Betriebsrat',
+         'due': 'Nov 12', 'due_de': '12. Nov.'},
+        {'en': 'Draft a works agreement on AMR data before the trial is extended',
+         'de': 'Vor einer Verlängerung des Tests eine Betriebsvereinbarung zu AMR-Daten entwerfen',
+         'owner': 'Works council + HR', 'owner_de': 'Betriebsrat + Personalabteilung', 'due': 'Dec 1', 'due_de': '1. Dez.'},
+    ],
+    'training': [
+        {'en': 'Translate the AMR manual into German and run a 2-hour hands-on session per shift',
+         'de': 'AMR-Anleitung ins Deutsche übersetzen und pro Schicht eine 2-stündige Praxisschulung anbieten',
+         'owner': 'Training team', 'owner_de': 'Schulungsteam', 'due': 'Nov 20', 'due_de': '20. Nov.'},
+    ],
+    'targets': [
+        {'en': 'Freeze output targets in Halls 3 and 4 during the 2-week trial',
+         'de': 'Stückzahlvorgaben in Halle 3 und 4 während des 2-wöchigen Tests einfrieren',
+         'owner': 'Plant director', 'owner_de': 'Werksleitung', 'due': 'Nov 7', 'due_de': '7. Nov.'},
+    ],
+}
+
+POLL_TEMPLATES = [
+    {'en': 'Which topic should we open the Town Hall with?',
+     'options': ['Safety in Hall 4', 'Job security & reskilling', 'Data & works agreement', 'Line pace / breaks'],
+     'de': 'Mit welchem Thema sollen wir das Town Hall beginnen?',
+     'options_de': ['Sicherheit in Halle 4', 'Arbeitsplätze & Umschulung', 'Daten & Betriebsvereinbarung', 'Bandtempo / Pausen']},
+    {'en': 'Is a 50% AMR speed cap workable for the trial?',
+     'options': ['Yes', 'Still too fast', 'Too slow for the line'],
+     'de': 'Ist ein AMR-Tempolimit von 50 % für den Test machbar?',
+     'options_de': ['Ja', 'Immer noch zu schnell', 'Zu langsam für das Band']},
+    {'en': 'How long should the trial run before we review it together?',
+     'options': ['2 weeks', '4 weeks', '6 weeks'],
+     'de': 'Wie lange soll der Test laufen, bevor wir ihn gemeinsam prüfen?',
+     'options_de': ['2 Wochen', '4 Wochen', '6 Wochen']},
+    {'en': 'What would make you trust the AMRs more?',
+     'options': ['Separate lanes', 'Slower speed', 'Hands-on training', 'Clear data rules'],
+     'de': 'Was würde dein Vertrauen in die AMRs stärken?',
+     'options_de': ['Eigene Fahrspuren', 'Langsameres Tempo', 'Praxisschulung', 'Klare Datenregeln']},
+    {'en': 'Do you feel heard so far?',
+     'options': ['Yes', 'Partly', 'No'],
+     'de': 'Fühlst du dich bisher gehört?',
+     'options_de': ['Ja', 'Teilweise', 'Nein']},
+]
+
+def action_template(title):
+    for items in ACTION_TEMPLATES.values():
+        for t in items:
+            if t['en'] == title:
+                return t
+    return None
+
+def poll_template(question):
+    for t in POLL_TEMPLATES:
+        if t['en'] == question:
+            return t
+    return None
 
 def tag_line(tags, lang='en'):
     return ' · '.join(QUICK_TAGS[t][lang] for t in tags or [] if t in QUICK_TAGS)
@@ -415,7 +515,7 @@ def cultural_notes(text):
 def post_score(author_role, supporter_roles, reply_count):
     return round(role_weight(author_role) + sum(role_weight(r) for r in supporter_roles) + 0.5 * reply_count, 2)
 
-def summarize_theme(theme_key, posts):
+def summarize_theme(theme_key, posts, lang='en'):
     if not posts:
         return ''
     roles = {}
@@ -423,5 +523,9 @@ def summarize_theme(theme_key, posts):
         roles[p['role']] = roles.get(p['role'], 0) + 1 + len(p.get('supporter_roles', []))
     top_role = max(roles, key=roles.get)
     share = round(100 * roles[top_role] / max(1, sum(roles.values())))
+    if lang == 'de':
+        return '%d %s · %d %% der Stimmen von: %s' % (
+            len(posts), 'Beitrag' if len(posts) == 1 else 'Beiträge', share,
+            ROLES[top_role]['label_de'].replace('\u00ad', ''))
     return '%d post%s · %d%% of voices from %ss' % (
         len(posts), '' if len(posts) == 1 else 's', share, ROLES[top_role]['label'])

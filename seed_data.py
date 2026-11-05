@@ -1,7 +1,7 @@
 import json
 import random
 
-from bp_engine import QUICK_TAGS
+from bp_engine import QUICK_TAGS, ACTION_TEMPLATES, POLL_TEMPLATES
 
 QUICK_THEMES = {k: v['theme'] for k, v in QUICK_TAGS.items()}
 
@@ -188,12 +188,10 @@ def ensure_agreement_params(conn):
                      (key, label, label_de, kind, value, unit, unit_de, lo, hi, step,
                       json.dumps(options) if options else None, i))
 
-ACTIONS = [
-    ('safety', 'Mark dedicated AMR lanes in Hall 4 and cap AMR speed at 50% for a 2-week trial',
-     'Safety team + AMR implementation lead', 'Nov 7', 'proposed'),
-    ('jobs', 'Publish a written no-layoff & reskilling commitment for AMR-affected roles, co-signed with the works council',
-     'Plant director + HR', 'Nov 30', 'proposed'),
-]
+# The opening poll and the two actions already on the charter, in English and German.
+POLL = POLL_TEMPLATES[0]
+ACTIONS = [('safety', ACTION_TEMPLATES['safety'][0], 'proposed'), ('jobs', ACTION_TEMPLATES['jobs'][0], 'proposed')]
+TOWN_HALL_DE = {'title_de': 'AMR-Einführung · Werk Stuttgart', 'when_de': 'Do., 23. Okt. · 16:00 MEZ / 11:00 Halifax'}
 
 def seed_demo(get_db, create_user, translate_fields, now_str):
     conn = get_db()
@@ -203,6 +201,15 @@ def seed_demo(get_db, create_user, translate_fields, now_str):
         conn.execute("UPDATE users SET status = 'online' WHERE username = 'helper'")
         conn.execute("UPDATE users SET display_name = 'Priya · Senior Product Manager' WHERE username = 'priya'")
         conn.execute("UPDATE groups_table SET name = 'Product Team (internal)' WHERE name IN ('Town Hall Team (internal)', 'Host prep (internal)')")
+        # Older databases: add the German versions without touching anything else.
+        for _theme, t, _status in ACTIONS:
+            conn.execute("UPDATE actions SET title_de = ?, owner_de = ?, due_de = ? "
+                         "WHERE title = ? AND (title_de IS NULL OR title_de = '' OR title_de = title)",
+                         (t['de'], t['owner_de'], t['due_de'], t['en']))
+        conn.execute("UPDATE polls SET question_de = ?, options_de = ? WHERE question = ? AND (question_de IS NULL OR question_de = '')",
+                     (POLL['de'], json.dumps(POLL['options_de']), POLL['en']))
+        for k, v in TOWN_HALL_DE.items():
+            conn.execute('INSERT OR IGNORE INTO th_state (key, value) VALUES (?, ?)', (k, v))
         conn.commit()
         conn.close()
         return
@@ -272,12 +279,10 @@ def seed_demo(get_db, create_user, translate_fields, now_str):
                   now_str(240)))
 
     for k, v in [('phase', 'before'), ('title', 'AMR Rollout · Stuttgart Plant'),
-                 ('when', 'Thu 23 Oct · 16:00 CET / 11:00 ADT')]:
+                 ('when', 'Thu 23 Oct · 16:00 CET / 11:00 ADT')] + list(TOWN_HALL_DE.items()):
         conn.execute('INSERT OR REPLACE INTO th_state (key, value) VALUES (?, ?)', (k, v))
-    conn.execute('INSERT INTO polls (question, options, is_open, created_at) VALUES (?,?,1,?)',
-                 ('Which topic should we open the Town Hall with?',
-                  json.dumps(['Safety in Hall 4', 'Job security & reskilling', 'Data & works agreement', 'Line pace / breaks']),
-                  now_str(100)))
+    conn.execute('INSERT INTO polls (question, options, question_de, options_de, is_open, created_at) VALUES (?,?,?,?,1,?)',
+                 (POLL['en'], json.dumps(POLL['options']), POLL['de'], json.dumps(POLL['options_de']), now_str(100)))
     pid = conn.execute('SELECT MAX(id) m FROM polls').fetchone()['m']
     votes = {'anon_s1': 1, 'anon_s2': 0, 'anon_s3': 1, 'anon_s4': 1, 'anon_s5': 0, 'anon_s6': 3,
              'anon_s7': 0, 'anon_s8': 1, 'union': 2, 'safety': 0, 'director2': 3}
@@ -286,9 +291,10 @@ def seed_demo(get_db, create_user, translate_fields, now_str):
     for u, v in {'anon_s1': 2, 'anon_s2': 2, 'anon_s3': 3, 'anon_s4': 1, 'anon_s5': 2, 'anon_s6': 3,
                  'anon_s7': 2, 'anon_s8': 3, 'union': 2, 'safety': 3, 'director2': 4}.items():
         conn.execute('INSERT INTO pulses (user_id, value, updated_at) VALUES (?,?,?)', (ids[u], v, now_str(20)))
-    for theme, title, owner, due, status in ACTIONS:
-        conn.execute('INSERT INTO actions (theme, title, owner, due, status, created_at) VALUES (?,?,?,?,?,?)',
-                     (theme, title, owner, due, status, now_str(50)))
+    for theme, t, status in ACTIONS:
+        conn.execute('INSERT INTO actions (theme, title, title_de, owner, owner_de, due, due_de, status, created_at) '
+                     'VALUES (?,?,?,?,?,?,?,?,?)',
+                     (theme, t['en'], t['de'], t['owner'], t['owner_de'], t['due'], t['due_de'], status, now_str(50)))
     conn.commit()
     conn.close()
     print('  [Seed] Done.')

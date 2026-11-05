@@ -73,8 +73,114 @@ var TX = {
     writePh: 'Was beschäftigt dich? Deutsch oder Englisch, beides geht …', signOut: 'Abmelden'
   }
 };
+// Strings for the screens shop-floor workers see (Square, Town Hall, Chat chrome).
+var TX2 = {
+  en: {
+    showAll: 'Show all themes and numbers', showLess: 'Hide themes and numbers',
+    weightNote: 'Score = reports + "me too" + replies, weighted by group:',
+    readMore: 'Read more', sqSub: 'the whole company, anonymously', tabLatest: 'Latest', tabTop: 'Top concerns', all: 'All', allConcerns: 'All concerns',
+    pinned: 'Pinned · Company broadcast', feedEmpty: 'Nothing here yet. Be the first to share a concern — it stays anonymous.',
+    ctaQuick: 'Report a problem', ctaWrite: 'Write', sheetWrite: 'Write a post',
+    capTitle: 'Live captions', capSub: 'speech → text → German ⇄ English, for everyone',
+    capEmpty: 'Captions appear here when someone speaks.', capPh: '…or type a question / caption and press Enter',
+    capSpeak: 'Speak', capStop: 'Stop', spokeDe: 'spoke German', spokeEn: 'spoke English',
+    impactTitle: 'Biggest impact first', impactSub: 'from the Square, role-weighted',
+    pollTitle: 'Live poll', noPoll: 'No poll yet.', votes: 'votes', pollOpen: 'open', pollClosed: 'closed', weighted: 'Weighted by group',
+    pulseTitle: 'Comfort pulse', pulseSub: 'How comfortable do you feel about the AMR rollout right now?',
+    pulseMine: 'Your mood', pulseChange: 'change',
+    face1: 'Very uneasy', face2: 'Uneasy', face3: 'Neutral', face4: 'OK', face5: 'Confident',
+    reactTitle: 'React live', reactSub: 'anonymous, instant',
+    re_agree: 'Agree', re_unsure: 'Unsure', re_concern: 'Concern', re_applause: 'Thanks',
+    charterTitle: 'Action charter', charterSub: 'written live — everyone can agree or say "not yet"', download: 'Download',
+    actAgree: 'Agree', actNotYet: 'Not yet', owner: 'Owner', due: 'Due',
+    noActions: 'No actions yet — the Product Team adds them live during the meeting.',
+    surveyTitle: 'After the Town Hall', surveySub: 'did people feel heard?',
+    surveyLater: 'A 2-question survey opens here when the Town Hall ends.',
+    surveyDone: '✓ Thank you — your answer is in. The final action charter stays visible here.',
+    sq1: 'Did you feel heard in today’s Town Hall?', sqLow: 'Not at all', sqHigh: 'Completely',
+    sq2: 'Does the action plan address your concerns?', yes: 'Yes', partly: 'Partly', no: 'No',
+    sqComment: 'Anything we missed? (optional, anonymous)', sendAnon: 'Send anonymously',
+    answerBoth: 'Please answer both questions', thanksFb: 'Thanks for your feedback',
+    stBefore: 'Before · collect', stLive: 'Live · discuss & decide', stAfter: 'After · feedback',
+    clkSoon: 'starts soon', clkLeft: 'left', clkIn: 'min in', clkEnded: 'ended after', clkMin: 'min',
+    liveNow: 'Live now', liveHint: 'React any time below',
+    bfTitle: 'Before the Town Hall', bfText: 'Tell us what bothers you on the floor. Priya reads every report before the meeting — your name is never shown.',
+    bfTop: 'Most reported so far', reports: 'reports',
+    simpleView: 'Simple view (fewer buttons)',
+    chatSearch: 'Search chats & rooms…', chatAll: 'All', chatChats: 'Chats', chatRooms: 'Rooms', chatNewRoom: '+ New breakout room',
+    chatPick: 'Select a chat or breakout room', chatInputPh: 'Type, or tap the mic and speak…',
+    chatBreakouts: 'Breakout rooms', chatOpenRooms: 'Open rooms', chatDirect: 'Direct', chatJoin: 'Join', members: 'members',
+    st_proposed: 'proposed', st_agreed: 'agreed', st_unresolved: 'open', st_signed: 'signed'
+  },
+  de: {
+    showAll: 'Alle Themen und Zahlen anzeigen', showLess: 'Themen und Zahlen ausblenden',
+    weightNote: 'Punkte = Meldungen + „Ich auch“ + Antworten, gewichtet nach Gruppe:',
+    readMore: 'Weiterlesen', sqSub: 'das ganze Werk, anonym', tabLatest: 'Neueste', tabTop: 'Top-Anliegen', all: 'Alle', allConcerns: 'Alle Anliegen',
+    pinned: 'Angeheftet · Mitteilung des Produktteams', feedEmpty: 'Noch nichts da. Teile als Erste/r ein Anliegen – es bleibt anonym.',
+    ctaQuick: 'Problem melden', ctaWrite: 'Schreiben', sheetWrite: 'Beitrag schreiben',
+    capTitle: 'Live-Untertitel', capSub: 'Sprache → Text → Deutsch ⇄ Englisch, für alle',
+    capEmpty: 'Hier erscheinen Untertitel, sobald jemand spricht.', capPh: '… oder Frage tippen und Enter drücken',
+    capSpeak: 'Sprechen', capStop: 'Stopp', spokeDe: 'auf Deutsch', spokeEn: 'auf Englisch',
+    impactTitle: 'Was am meisten bewegt', impactSub: 'aus dem Square, nach Gruppe gewichtet',
+    pollTitle: 'Abstimmung', noPoll: 'Noch keine Abstimmung.', votes: 'Stimmen', pollOpen: 'offen', pollClosed: 'geschlossen', weighted: 'Nach Gruppe gewichtet',
+    pulseTitle: 'Stimmung', pulseSub: 'Wie wohl fühlst du dich gerade mit den AMRs?',
+    pulseMine: 'Deine Stimmung', pulseChange: 'ändern',
+    face1: 'Sehr unwohl', face2: 'Unwohl', face3: 'Neutral', face4: 'Okay', face5: 'Zuversichtlich',
+    reactTitle: 'Live reagieren', reactSub: 'anonym, sofort',
+    re_agree: 'Zustimmung', re_unsure: 'Unsicher', re_concern: 'Bedenken', re_applause: 'Danke',
+    charterTitle: 'Maßnahmenplan', charterSub: 'wird live geschrieben – alle können zustimmen oder „noch nicht“ sagen', download: 'Herunterladen',
+    actAgree: 'Passt', actNotYet: 'Noch nicht', owner: 'Verantwortlich', due: 'Bis',
+    noActions: 'Noch keine Maßnahmen – das Produktteam trägt sie live im Meeting ein.',
+    surveyTitle: 'Nach dem Town Hall', surveySub: 'Wurdest du gehört?',
+    surveyLater: 'Nach dem Town Hall erscheinen hier 2 kurze Fragen.',
+    surveyDone: '✓ Danke – deine Antwort ist angekommen. Der Maßnahmenplan bleibt hier sichtbar.',
+    sq1: 'Hast du dich heute gehört gefühlt?', sqLow: 'Gar nicht', sqHigh: 'Voll und ganz',
+    sq2: 'Geht der Maßnahmenplan auf deine Anliegen ein?', yes: 'Ja', partly: 'Teilweise', no: 'Nein',
+    sqComment: 'Haben wir etwas vergessen? (optional, anonym)', sendAnon: 'Anonym senden',
+    answerBoth: 'Bitte beide Fragen beantworten', thanksFb: 'Danke für dein Feedback',
+    stBefore: 'Vorher · sammeln', stLive: 'Live · besprechen & entscheiden', stAfter: 'Danach · Feedback',
+    clkSoon: 'beginnt bald', clkLeft: 'übrig', clkIn: 'Min. vorbei', clkEnded: 'beendet nach', clkMin: 'Min.',
+    liveNow: 'Jetzt live', liveHint: 'Reagiere jederzeit hier unten',
+    bfTitle: 'Vor dem Town Hall', bfText: 'Sag uns, was dich in der Halle stört. Priya liest jede Meldung vor dem Meeting – dein Name wird nie angezeigt.',
+    bfTop: 'Bisher am häufigsten gemeldet', reports: 'Meldungen',
+    simpleView: 'Einfache Ansicht (weniger Knöpfe)',
+    chatSearch: 'Chats & Räume suchen …', chatAll: 'Alle', chatChats: 'Chats', chatRooms: 'Räume', chatNewRoom: '+ Neuer Breakout-Raum',
+    chatPick: 'Chat oder Breakout-Raum wählen', chatInputPh: 'Tippen oder aufs Mikro tippen und sprechen …',
+    chatBreakouts: 'Breakout-Räume', chatOpenRooms: 'Offene Räume', chatDirect: 'Direkt', chatJoin: 'Beitreten', members: 'Mitglieder',
+    st_proposed: 'vorgeschlagen', st_agreed: 'vereinbart', st_unresolved: 'offen', st_signed: 'unterschrieben'
+  }
+};
+Object.keys(TX2).forEach(function (l) { Object.keys(TX2[l]).forEach(function (k) { TX[l][k] = TX2[l][k]; }); });
+
+// Simple view: line workers on the floor get one job per screen. Others can switch it on in Settings.
+var SIMPLE = (function () {
+  if (ME.isOrganizer) return false;
+  var v = null; try { v = localStorage.getItem('bp_simple'); } catch (e) {}
+  if (v === '1') return true;
+  if (v === '0') return false;
+  return ME.role === 'line_worker';
+})();
+if (SIMPLE) { document.body.classList.add('simple'); state.sort = 'top'; }
+
 function tx(k) { var d = TX[state.lang] || TX.en; return d[k] != null ? d[k] : (TX.en[k] != null ? TX.en[k] : k); }
 function themeLabel(key) { var t = THEMES[key] || THEMES.other; return state.lang === 'de' ? (t.label_de || t.label) : t.label; }
+function themeIcon(key) { return (THEMES[key] || THEMES.other).icon || ''; }
+// Status is the only place red/amber/green appear in content; it always carries an icon and a word.
+var STATUS_ICON = { proposed: '○', agreed: '✓', unresolved: '✋', signed: '🔒' };
+function statusPill(s) {
+  return '<span class="status-pill status-' + esc(s) + '"><i>' + (STATUS_ICON[s] || '○') + '</i>' + esc(tx('st_' + s)) + '</span>';
+}
+function actionTitle(a) { return state.lang === 'de' ? (a.title_de || a.title) : a.title; }
+function actionOwner(a) { return state.lang === 'de' ? (a.owner_de || a.owner) : a.owner; }
+function actionDue(a) { return state.lang === 'de' ? (a.due_de || a.due) : a.due; }
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(function (el) {
+    if (el.id === 'chatName' && state.activeChat) return;
+    el.textContent = tx(el.getAttribute('data-i18n'));
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.placeholder = tx(el.getAttribute('data-i18n-ph')); });
+  if ($('capMicLabel')) setCapUI(!!capOn);
+}
 function themeKeys() { return Object.keys(THEMES).filter(function (k) { return k !== 'other'; }).concat(['other']); }
 function tagLabel(k) { var t = QT[k]; return t ? (t[state.lang] || t.en) : k; }
 function feelLabel(v) { var s = SENTS[v]; return s ? (s[state.lang] || s.en) : ''; }
@@ -209,8 +315,9 @@ function setLanguage(l) {
   $('langDe').classList.toggle('active', l === 'de');
   $('langEn').classList.toggle('active', l === 'en');
   api('/api/me', { language: l }).catch(function () {});
+  applyI18n();
   renderFeed(); renderMessages(); renderInsightsPanel(); if (state.th) renderTownHall();
-  renderThemeFilter(); renderComposerLabels(); renderQuick();
+  renderThemeFilter(); renderComposerLabels(); renderQuick(); renderContacts();
   loadSettings();
 }
 
@@ -233,25 +340,23 @@ function renderThemeFilter() {
   ((state.insights && state.insights.themes) || []).forEach(function (t) { counts[t.key] = t.posts; });
   var keys = themeKeys();
   var total = state.insights ? state.insights.total_posts : '';
-  var html = '<button class="theme-filter-item' + (state.theme ? '' : ' active') + '" onclick="setThemeFilter(\'\')"><span class="theme-dot" style="background:var(--brand)"></span>All concerns<span class="count">' + total + '</span></button>';
-  var chips = '<button class="tag" style="border:1px solid var(--border);background:' + (state.theme ? '#fff' : 'var(--brand)') + ';color:var(--brand-ink);cursor:pointer" onclick="setThemeFilter(\'\')">All</button>';
+  var html = '<button class="theme-filter-item' + (state.theme ? '' : ' active') + '" onclick="setThemeFilter(\'\')"><span class="theme-ic">☰</span>' + esc(tx('allConcerns')) + '<span class="count">' + total + '</span></button>';
+  var chips = '<button class="tag theme-chip' + (state.theme ? '' : ' on') + '" onclick="setThemeFilter(\'\')">' + esc(tx('all')) + '</button>';
   keys.forEach(function (k) {
-    var meta = THEMES[k] || THEMES.other;
-    html += '<button class="theme-filter-item' + (state.theme === k ? ' active' : '') + '" onclick="setThemeFilter(\'' + k + '\')"><span class="theme-dot" style="background:' + meta.color + '"></span>' + esc(themeLabel(k)) + '<span class="count">' + (counts[k] || 0) + '</span></button>';
-    var on = state.theme === k;
-    chips += '<button class="tag" style="cursor:pointer;white-space:nowrap;border:1px solid ' + meta.color + ';background:' + (on ? meta.color : '#fff') + ';color:' + (on ? '#fff' : meta.color) + '" onclick="setThemeFilter(\'' + k + '\')">' + esc(themeLabel(k)) + '</button>';
+    html += '<button class="theme-filter-item' + (state.theme === k ? ' active' : '') + '" onclick="setThemeFilter(\'' + k + '\')"><span class="theme-ic">' + themeIcon(k) + '</span>' + esc(themeLabel(k)) + '<span class="count">' + (counts[k] || 0) + '</span></button>';
+    chips += '<button class="tag theme-chip' + (state.theme === k ? ' on' : '') + '" onclick="setThemeFilter(\'' + k + '\')">' + themeIcon(k) + ' ' + esc(themeLabel(k)) + '</button>';
   });
   $('themeFilter').innerHTML = html;
   $('chipRow').innerHTML = chips;
 }
 function themeTag(p) {
   if (!p.theme || p.theme === 'other' && p.is_broadcast) return '';
-  return '<span class="tag" style="background:' + p.theme_color + '1A;color:' + p.theme_color + '"><span class="theme-dot" style="background:' + p.theme_color + ';width:7px;height:7px"></span>' + esc(themeLabel(p.theme)) + '</span>';
+  return '<span class="tag tag-theme"><span class="tag-ic">' + themeIcon(p.theme) + '</span>' + esc(themeLabel(p.theme)) + '</span>';
 }
 function quickChips(p) {
   var html = (p.tags || []).map(function (k) {
     var t = QT[k]; if (!t) return '';
-    return '<span class="qchip" style="--tc:' + ((THEMES[t.theme] || THEMES.other).color) + '"><span class="qchip-i">' + t.icon + '</span>' + esc(tagLabel(k)) + '</span>';
+    return '<span class="qchip"><span class="qchip-i">' + t.icon + '</span>' + esc(tagLabel(k)) + '</span>';
   }).join('');
   if (p.sentiment && SENTS[p.sentiment]) html += '<span class="feel-chip">' + SENTS[p.sentiment].face + ' ' + esc(feelLabel(p.sentiment)) + '</span>';
   return html ? '<div class="qchips">' + html + '</div>' : '';
@@ -261,7 +366,12 @@ function statusWord(s) {
 }
 function actionLink(p) {
   if (!p.action) return '';
-  return '<div class="post-action-link st-' + esc(p.action.status) + '">' + ICON.pen + '<span>' + esc(tx('actionLink')) + ': <b>' + esc(p.action.title) + '</b> · ' + esc(statusWord(p.action.status)) + '</span></div>';
+  var st = p.action.status, mark = '<i class="st-ic">' + (STATUS_ICON[st] || '○') + '</i>';
+  if (SIMPLE) {
+    // One short line instead of repeating the full action title under every post.
+    return '<div class="post-action-link mini st-' + esc(st) + '">' + ICON.pen + '<span>' + esc(tx('actionLink')) + ' · ' + mark + esc(tx('st_' + st)) + '</span></div>';
+  }
+  return '<div class="post-action-link st-' + esc(st) + '">' + ICON.pen + '<span>' + esc(tx('actionLink')) + ': <b>' + esc(actionTitle(p.action)) + '</b> · ' + mark + esc(tx('st_' + st)) + '</span></div>';
 }
 function postHTML(p) {
   var a = p.author;
@@ -271,7 +381,9 @@ function postHTML(p) {
       ? '<video src="' + esc(p.media_url) + '" controls playsinline preload="metadata"></video>'
       : '<img src="' + esc(p.media_url) + '" alt="Photo attached to post" loading="lazy">') + '</div>';
   }
-  var tags = themeTag(p) + (p.zone ? '<span class="tag tag-zone">' + ICON.place + esc(p.zone) + '</span>' : '');
+  // In the simple view a quick-report tile already says what the post is about, so the theme tag would repeat it.
+  var showTheme = !(SIMPLE && p.tags && p.tags.length);
+  var tags = (showTheme ? themeTag(p) : '') + (p.zone ? '<span class="tag tag-zone">' + ICON.place + esc(p.zone) + '</span>' : '');
   var canDel = p.is_mine || ME.isOrganizer;
   var actions = p.is_broadcast ? '' :
     '<div class="post-actions">' +
@@ -297,12 +409,14 @@ function postHTML(p) {
 function renderFeed() {
   if (!state.feed) return;
   var b = state.feed.broadcasts.map(function (p) {
-    return '<div class="broadcast"><div class="broadcast-label">' + ICON.pin + 'Pinned · Company broadcast</div>' + postHTML(p) + '</div>';
+    // Simple view: long announcements start folded to three lines; one tap opens them.
+    return '<div class="broadcast' + (SIMPLE ? ' clamp" data-more="' + esc(tx('readMore')) + '" onclick="this.classList.remove(\'clamp\')' : '') + '">' +
+      '<div class="broadcast-label">' + ICON.pin + esc(tx('pinned')) + '</div>' + postHTML(p) + '</div>';
   }).join('');
   $('broadcastList').innerHTML = state.theme ? '' : b;
   var posts = state.feed.posts;
   $('feedList').innerHTML = posts.length ? posts.map(postHTML).join('') :
-    '<div class="feed-empty">Nothing here yet. Be the first to share a concern — it stays anonymous.</div>';
+    '<div class="feed-empty">' + esc(tx('feedEmpty')) + '</div>';
   Object.keys(state.openThreads).forEach(function (id) { if (state.openThreads[id]) loadThread(id); });
 }
 function toggleSupport(id) {
@@ -407,8 +521,9 @@ function submitPost() {
     $('themeSelect').value = ''; $('zoneSelect').value = '';
     if ($('broadcastCheck')) $('broadcastCheck').checked = false;
     $('postBtn').disabled = false;
-    var lbl = (THEMES[d.theme] || { label: 'Other' }).label;
-    toast('Posted anonymously · filed under ' + lbl);
+    var lbl = themeLabel(d.theme);
+    toast((state.lang === 'de' ? 'Anonym gepostet · Thema: ' : 'Posted anonymously · filed under ') + lbl);
+    closeReport();
     if (state.sort !== 'latest') setSort('latest'); else loadFeed();
     $('feedScroll').scrollTop = 0;
   }).catch(function (e) { $('postBtn').disabled = false; toast(e.message); });
@@ -431,13 +546,28 @@ function setComposerMode(m) {
   if ($('cmQuick')) { $('cmQuick').classList.toggle('active', m === 'quick'); $('cmWrite').classList.toggle('active', m === 'write'); }
   var slot = m === 'quick' && $('quickMediaSlot') ? $('quickMediaSlot') : $('writeMediaSlot');
   slot.appendChild($('mediaPreview'));
+  if ($('sheetTitle')) $('sheetTitle').textContent = tx(m === 'quick' ? 'ctaQuick' : 'sheetWrite');
   try { localStorage.setItem('bp_cmode', m); } catch (e) {}
+}
+// Simple view: the report form stays behind one big button and opens as a full-screen sheet.
+function openReport(m) {
+  if (!$('composer')) return;
+  if (state.mode !== 'square') switchMode('square');
+  setComposerMode(m || 'quick');
+  $('composer').classList.add('open');
+  document.body.classList.add('sheet-open');
+  $('composer').scrollTop = 0;
+}
+function closeReport() {
+  if (!$('composer')) return;
+  $('composer').classList.remove('open');
+  document.body.classList.remove('sheet-open');
 }
 function renderQuick() {
   var el = $('quickBody'); if (!el) return;
   var tiles = BOOT.quickOrder.map(function (k) {
-    var t = QT[k], on = quick.tags.indexOf(k) !== -1, color = (THEMES[t.theme] || THEMES.other).color;
-    return '<button class="qtag' + (on ? ' on' : '') + '" style="--tc:' + color + '" aria-pressed="' + on + '" onclick="toggleQuickTag(\'' + k + '\')">' +
+    var t = QT[k], on = quick.tags.indexOf(k) !== -1;
+    return '<button class="qtag' + (on ? ' on' : '') + '" aria-pressed="' + on + '" onclick="toggleQuickTag(\'' + k + '\')">' +
       '<span class="qi">' + t.icon + '</span><span class="ql">' + esc(tagLabel(k)) + '</span>' + (on ? '<span class="qcheck">✓</span>' : '') + '</button>';
   }).join('');
   var zones = ZONES.map(function (z, i) {
@@ -514,7 +644,7 @@ function submitQuick() {
     media_url: state.media && state.media.url, media_type: state.media && state.media.type })
     .then(function () {
       quick = { tags: [], sentiment: null, zone: '', voice: '' };
-      clearMedia(); renderQuick(); btn.disabled = false; showSent();
+      clearMedia(); renderQuick(); btn.disabled = false; closeReport(); showSent();
       if (state.sort !== 'latest') setSort('latest'); else loadFeed();
     })
     .catch(function (e) { btn.disabled = false; btn.textContent = tx('send'); toast(e.message); });
@@ -586,12 +716,12 @@ function renderInsightsPanel() {
       '<div class="ins-stat"><b>' + d.participants + '</b><span>joined</span></div>' +
       '<div class="ins-stat"><b>' + d.de_share + '%</b><span>in German</span></div></div>' +
       (d.tag_totals && d.tag_totals.length ? '<div class="ins-section">Most reported (quick reports)</div><div class="qchips">' +
-        d.tag_totals.slice(0, 6).map(function (kv) { var t = QT[kv[0]]; return t ? '<span class="qchip sm" style="--tc:' + (THEMES[t.theme] || THEMES.other).color + '"><span class="qchip-i">' + t.icon + '</span>' + esc(tagLabel(kv[0])) + ' <b>×' + kv[1] + '</b></span>' : ''; }).join('') + '</div>' : '') +
+        d.tag_totals.slice(0, 6).map(function (kv) { var t = QT[kv[0]]; return t ? '<span class="qchip sm"><span class="qchip-i">' + t.icon + '</span>' + esc(tagLabel(kv[0])) + ' <b>×' + kv[1] + '</b></span>' : ''; }).join('') + '</div>' : '') +
       '<div class="ins-section">Themes by weighted impact</div>' +
       d.themes.map(function (t) {
-        return '<div class="ins-theme" style="border-left-color:' + t.color + '" onclick="setThemeFilter(\'' + t.key + '\')">' +
-          '<div class="ins-theme-top"><span class="ins-theme-name">' + esc(themeLabel(t.key)) + '</span><span class="ins-theme-score" style="color:' + t.color + '">' + t.score + '</span></div>' +
-          '<div class="mixbar" style="height:4px;margin-top:6px"><span style="width:' + (100 * t.score / max) + '%;background:' + t.color + '"></span></div>' +
+        return '<div class="ins-theme" onclick="setThemeFilter(\'' + t.key + '\')">' +
+          '<div class="ins-theme-top"><span class="ins-theme-name"><span class="tag-ic">' + themeIcon(t.key) + '</span> ' + esc(themeLabel(t.key)) + '</span><span class="ins-theme-score">' + t.score + '</span></div>' +
+          '<div class="mixbar" style="height:4px;margin-top:6px"><span class="impact-fill" style="width:' + (100 * t.score / max) + '%"></span></div>' +
           '<div class="ins-theme-sum">' + esc(t.summary) + ' · ' + t.support + ' "me too"</div>' +
           mixBar(t.role_mix) + '</div>';
       }).join('') +
@@ -659,16 +789,16 @@ function renderContacts() {
   var html = '';
   var groups = list.filter(function (c) { return c.type === 'group'; });
   var chats = list.filter(function (c) { return c.type === 'chat'; });
-  if (groups.length) html += '<div class="list-label">Breakout rooms</div>' + groups.map(contactHTML).join('');
+  if (groups.length) html += '<div class="list-label">' + esc(tx('chatBreakouts')) + '</div>' + groups.map(contactHTML).join('');
   var joinable = state.rooms.filter(function (r) { return !r.joined && r.name.toLowerCase().indexOf(q) !== -1; });
   if (joinable.length && contactFilter.tab !== 'chats') {
-    html += '<div class="list-label">Open rooms</div>' + joinable.map(function (r) {
+    html += '<div class="list-label">' + esc(tx('chatOpenRooms')) + '</div>' + joinable.map(function (r) {
       return '<div class="contact-item"><div class="avatar contact-avatar group" style="background:var(--brand-tint)">' + esc(r.name.replace('Breakout', '').split(' ').filter(function (w) { return /^\w/.test(w); }).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase()) + '</div>' +
-        '<div class="contact-info"><div class="contact-name">' + esc(r.name) + '</div><div class="contact-preview">' + r.members + ' members</div></div>' +
-        '<button class="room-join" onclick="joinRoom(' + r.id + ')">Join</button></div>';
+        '<div class="contact-info"><div class="contact-name">' + esc(r.name) + '</div><div class="contact-preview">' + r.members + ' ' + esc(tx('members')) + '</div></div>' +
+        '<button class="room-join" onclick="joinRoom(' + r.id + ')">' + esc(tx('chatJoin')) + '</button></div>';
     }).join('');
   }
-  if (chats.length) html += '<div class="list-label">Direct</div>' + chats.map(contactHTML).join('');
+  if (chats.length) html += '<div class="list-label">' + esc(tx('chatDirect')) + '</div>' + chats.map(contactHTML).join('');
   $('chatsList').innerHTML = html || '<div class="feed-empty">No matches</div>';
 }
 function contactHTML(c) {
@@ -815,12 +945,13 @@ function fmtMin(m) { var s = Math.max(0, Math.floor(m * 60)); return Math.floor(
 function renderClock() {
   var th = state.th, el = $('thClock'); if (!th || !el) return;
   if (th.phase === 'before' || !th.clock.started) {
-    el.innerHTML = '<span class="clk-big idle">60:00</span><span class="clk-sub">' + (ME.isOrganizer ? 'starts when you go live' : 'starts soon') + '</span>';
+    el.innerHTML = '<span class="clk-big idle">60:00</span><span class="clk-sub">' + (ME.isOrganizer ? 'starts when you go live' : esc(tx('clkSoon'))) + '</span>';
   } else {
     var e = elapsedMin(), rem = Math.max(0, th.clock.duration - e);
     var warn = th.phase === 'live' && rem <= 15;
     el.innerHTML = '<span class="clk-big' + (warn ? ' warn' : '') + '">' + fmtMin(rem) + '</span><span class="clk-sub">' +
-      (th.phase === 'after' ? 'ended after ' + Math.round(e) + ' min' : 'left · ' + Math.floor(e) + ' min in') + '</span>';
+      (th.phase === 'after' ? esc(tx('clkEnded')) + ' ' + Math.round(e) + ' ' + esc(tx('clkMin'))
+        : esc(tx('clkLeft')) + ' · ' + Math.floor(e) + ' ' + esc(tx('clkIn'))) + '</span>';
   }
   renderAgenda();
   renderNowBanner();
@@ -839,11 +970,15 @@ function renderAgenda() {
 function renderNowBanner() {
   var th = state.th, el = $('nowBanner'); if (!el || !th) return;
   var f = th.focus;
-  if (!f || th.phase !== 'live') { el.classList.add('hidden'); return; }
+  if (th.phase !== 'live' || (!f && !SIMPLE)) { el.classList.add('hidden'); return; }
   el.classList.remove('hidden');
-  el.style.setProperty('--tc', f.color);
+  if (!f) {
+    // Simple view: always show that the meeting is live, so the reaction buttons right below make sense.
+    el.innerHTML = '<span class="now-dot"></span><span class="now-label">' + esc(tx('liveNow')) + '</span><span class="now-hint">' + esc(tx('liveHint')) + '</span>';
+    return;
+  }
   var mins = Math.max(0, Math.floor((clockNow() - f.started) / 60));
-  el.innerHTML = '<span class="now-dot"></span><span class="now-label">' + esc(tx('nowDiscussing')) + '</span><b>' + esc(themeLabel(f.key)) + '</b>' +
+  el.innerHTML = '<span class="now-dot"></span><span class="now-label">' + esc(tx('nowDiscussing')) + '</span><b><span class="now-ic">' + themeIcon(f.key) + '</span>' + esc(themeLabel(f.key)) + '</b>' +
     (ME.isOrganizer ? '<span class="now-min">' + mins + ' min</span><button class="btn-ghost sm" onclick="setFocus(\'\')">Clear</button>'
       : '<span class="now-hint">' + esc(tx('nowHint')) + '</span>');
 }
@@ -858,16 +993,16 @@ function renderFocus() {
   }).join('');
   el.innerHTML = cards.map(function (c, i) {
     var tags = (c.tag_counts || []).slice(0, 3).map(function (kv) {
-      var t = QT[kv[0]]; return t ? '<span class="qchip sm" style="--tc:' + c.color + '"><span class="qchip-i">' + t.icon + '</span>' + esc(t.en) + ' <b>×' + kv[1] + '</b></span>' : '';
+      var t = QT[kv[0]]; return t ? '<span class="qchip sm"><span class="qchip-i">' + t.icon + '</span>' + esc(t.en) + ' <b>×' + kv[1] + '</b></span>' : '';
     }).join('');
     var feel = c.sentiment_avg ? '<span class="fstat">' + SENTS[Math.min(5, Math.max(1, Math.round(c.sentiment_avg)))].face + ' ' + c.sentiment_avg + '/5</span>' : '';
     var acts = (c.actions || []).map(function (a) {
-      return '<div class="fact"><span class="status-pill status-' + esc(a.status) + '">' + esc(a.status) + '</span>' + esc(a.title) + ' <small>✓' + a.agree + ' · ✋' + a.not_yet + '</small></div>';
+      return '<div class="fact">' + statusPill(a.status) + esc(a.title) + ' <small>✓' + a.agree + ' · ✋' + a.not_yet + '</small></div>';
     }).join('');
-    return '<div class="fcard' + (c.is_focus ? ' focus' : '') + '" style="--tc:' + c.color + '">' +
-      '<div class="fhead"><span class="frank">' + (i + 1) + '</span><span class="ftitle">' + esc(c.label) + '</span><span class="fscore" title="Role-weighted priority">' + c.score + '</span></div>' +
+    return '<div class="fcard' + (c.is_focus ? ' focus' : '') + '">' +
+      '<div class="fhead"><span class="frank">' + (i + 1) + '</span><span class="ftitle"><span class="ftitle-ic">' + themeIcon(c.key) + '</span>' + esc(c.label) + '</span><span class="fscore" title="Role-weighted priority">' + c.score + '</span></div>' +
       '<div class="fstats"><span class="fstat">' + c.posts + ' reports</span><span class="fstat">' + c.support + ' me too</span>' +
-        '<span class="fstat">' + c.line_share + '% line workers</span>' + feel + (c.recent ? '<span class="fstat rise">+' + c.recent + ' in 15 min</span>' : '') + '</div>' +
+        '<span class="fstat">' + c.line_share + '% line workers</span>' + feel + (c.recent ? '<span class="fstat rise">↑ ' + c.recent + ' new in 15 min</span>' : '') + '</div>' +
       '<div class="fsum"><span class="fsum-tag">' + (c.summary_engine === 'llm' ? 'AI summary' : 'Summary') + '</span>' + esc(c.summary_text) + '</div>' +
       (tags ? '<div class="qchips">' + tags + '</div>' : '') +
       (acts ? '<div class="facts">' + acts + '</div>' : '') +
@@ -942,21 +1077,30 @@ function signAgreement() {
 function updatePhaseUI() {
   var th = state.th; if (!th) return;
   $('liveDot').classList.toggle('on', th.phase === 'live');
-  $('thMiniTitle').textContent = th.title; $('thMiniWhen').textContent = th.when;
+  var de = state.lang === 'de';
+  $('thMiniTitle').textContent = de ? th.title_de : th.title; $('thMiniWhen').textContent = de ? th.when_de : th.when;
   var pill = $('thMiniPhase');
   pill.className = 'phase-pill' + (th.phase === 'live' ? ' live' : th.phase === 'after' ? ' after' : '');
   pill.textContent = th.phase === 'live' ? '● Live now' : th.phase === 'after' ? 'Finished · survey open' : 'Collecting concerns';
 }
 function renderTownHall() {
   var th = state.th; if (!th) return;
-  $('thTitle').textContent = th.title;
-  $('thSub').textContent = th.when + ' · 60 min · ' + th.online + ' online';
-  var steps = [['before', 'Before · collect'], ['live', 'Live · discuss & decide'], ['after', 'After · feedback']];
+  var de = state.lang === 'de';
+  $('thTitle').textContent = de ? th.title_de : th.title;
+  $('thSub').textContent = (de ? th.when_de : th.when) + ' · 60 min · ' + th.online + ' online';
+  var steps = [['before', tx('stBefore')], ['live', tx('stLive')], ['after', tx('stAfter')]];
   var idx = steps.map(function (s) { return s[0]; }).indexOf(th.phase);
   $('stepper').innerHTML = steps.map(function (s, i) {
     var cls = 'step' + (i < idx ? ' done' : '') + (i === idx ? ' current' + (s[0] === 'live' ? ' live' : '') : '');
-    return (i ? '<span class="step-sep"></span>' : '') + '<span class="' + cls + '"><span class="n">' + (i < idx ? '✓' : i + 1) + '</span><span class="t">' + s[1] + '</span></span>';
+    return (i ? '<span class="step-sep"></span>' : '') + '<span class="' + cls + '"><span class="n">' + (i < idx ? '✓' : i + 1) + '</span><span class="t">' + esc(s[1]) + '</span></span>';
   }).join('');
+
+  // Body classes drive which Town Hall cards the simple view shows in each phase (see app.css).
+  var bc = document.body.classList;
+  bc.remove('ph-before', 'ph-live', 'ph-after'); bc.add('ph-' + th.phase);
+  bc.toggle('poll-open', !!(th.poll && th.poll.is_open));
+  bc.toggle('ag-open', !!(th.agreement && th.agreement.open && !th.agreement.locked));
+  bc.toggle('ag-locked', !!(th.agreement && th.agreement.locked));
 
   var top = th.top_concerns.slice(0, 5);
   var max = Math.max.apply(null, top.map(function (t) { return t.score; }).concat([1]));
@@ -964,31 +1108,70 @@ function renderTownHall() {
     $('concernList').innerHTML = top.map(function (t, i) {
       var total = 0; Object.keys(t.role_mix).forEach(function (k) { total += t.role_mix[k]; });
       var seg = Object.keys(ROLES).filter(function (k) { return t.role_mix[k]; }).map(function (k) {
-        return '<span style="width:' + (100 * t.score / max) * (t.role_mix[k] / total) + '%;background:' + ROLES[k].color + '"></span>';
+        return '<span style="width:' + (100 * t.score / max) * (t.role_mix[k] / total) + '%;background:' + ROLES[k].color + '" title="' + esc(ROLES[k].label) + '"></span>';
       }).join('');
       var focus = th.focus && th.focus.key === t.key && th.phase === 'live';
+      var quote = state.lang === 'de' ? (t.top_quote_de || t.top_quote) : t.top_quote;
       return '<div class="concern' + (focus ? ' is-focus' : '') + '"><span class="concern-rank">#' + (i + 1) + '</span>' +
-        '<span class="concern-title"><span class="theme-dot" style="background:' + t.color + '"></span>' + esc(themeLabel(t.key)) + (focus ? '<span class="now-chip">' + esc(tx('nowDiscussing')) + '</span>' : '') + '</span>' +
+        '<span class="concern-title"><span class="concern-ic">' + themeIcon(t.key) + '</span>' + esc(themeLabel(t.key)) + (focus ? '<span class="now-chip">' + esc(tx('nowDiscussing')) + '</span>' : '') + '</span>' +
         '<span class="concern-score">' + t.score + '</span>' +
         '<div class="concern-bar">' + seg + '</div>' +
-        '<div class="concern-meta">' + esc(t.summary) + ' · ' + t.support + ' "me too"</div>' +
-        '<div class="concern-quote">“' + esc(t.top_quote) + '”</div>' +
+        '<div class="concern-meta">' + esc(concernSummary(t)) + '</div>' +
+        '<div class="concern-quote">“' + esc(quote) + '”</div>' +
       '</div>';
     }).join('') || '<div class="feed-empty">No concerns posted yet.</div>';
-    $('roleLegend').innerHTML = Object.keys(ROLES).filter(function (k) { return k !== 'organizer'; }).map(function (k) {
-      return '<span><i style="background:' + ROLES[k].color + '"></i>' + esc(ROLES[k].label) + '</span>';
+    var roleOrder = ['line_worker', 'safety_officer', 'union_rep', 'director'].filter(function (k) { return ROLES[k]; });
+    $('roleLegend').innerHTML = roleOrder.map(function (k) {
+      return '<span><i style="background:' + ROLES[k].color + '"></i>' + esc(state.lang === 'de' ? ROLES[k].label_de : ROLES[k].label) + '</span>';
     }).join('');
+    // The weighting is public: say exactly how the score is made.
+    if ($('weightNote')) $('weightNote').textContent = tx('weightNote') + ' ' + roleOrder.map(function (k) {
+      return (state.lang === 'de' ? ROLES[k].label_de.replace('\u00ad', '') : ROLES[k].label) + ' ' + ROLES[k].weight.toFixed(1).replace('.', state.lang === 'de' ? ',' : '.') + '×';
+    }).join(' · ');
   }
+  renderShowAll();
 
+  renderBefore();
   renderClock(); renderFocus(); renderPoll(); renderPulse(); renderReactions(); renderCharter(); renderAgreement(); renderSurvey();
   if (state.mode === 'townhall') renderLivePanel();
 }
+// Simple view, before the meeting: one card with the call to action and the top three themes in plain words.
+function concernSummary(t) {
+  if (state.lang !== 'de') return t.summary + ' · ' + t.support + ' "me too"';
+  return (t.summary_de || t.summary) + ' · ' + t.support + ' „' + tx('metoo') + '“';
+}
+// Simple view: the full ranking with scores is folded away by default, but one visible tap opens it.
+function renderShowAll() {
+  var on = document.body.classList.contains('show-impact');
+  if ($('showAllBtn')) $('showAllBtn').innerHTML = '<span>' + esc(tx(on ? 'showLess' : 'showAll')) + '</span><span class="sa-arrow">' + (on ? '▴' : '▾') + '</span>';
+  document.querySelectorAll('.bf-more').forEach(function (b) { b.textContent = tx(on ? 'showLess' : 'showAll') + (on ? ' ▴' : ' ›'); });
+}
+function toggleAllThemes() {
+  var on = document.body.classList.toggle('show-impact');
+  renderShowAll();
+  if (on && $('impactCard')) setTimeout(function () { scrollPanelTo($('impactCard')); }, 50);
+}
+function renderBefore() {
+  var el = $('beforeCard'); if (!el || !state.th) return;
+  var top = (state.th.top_concerns || []).slice(0, 3);
+  el.innerHTML = '<div class="bf-title">' + esc(tx('bfTitle')) + '</div>' +
+    '<p class="bf-text">' + esc(tx('bfText')) + '</p>' +
+    '<button class="cta-big" onclick="openReport(\'quick\')"><span class="cta-ic">⚡</span><span>' + esc(tx('ctaQuick')) + '</span></button>' +
+    (top.length ? '<div class="bf-sub">' + esc(tx('bfTop')) + '</div><ol class="bf-list">' + top.map(function (t) {
+      return '<li><span class="bf-ic">' + themeIcon(t.key) + '</span><span class="bf-name">' + esc(themeLabel(t.key)) + '</span>' +
+        '<span class="bf-n">' + t.posts + ' ' + esc(tx('reports')) + ' · ' + t.support + ' ' + esc(tx('metoo')) + '</span></li>';
+    }).join('') + '</ol><button class="bf-more" onclick="toggleAllThemes()"></button>' : '');
+  renderShowAll();
+}
 function renderPoll() {
   var p = state.th.poll, box = $('pollBox');
-  if (!p) { box.innerHTML = '<div class="engine-note">No poll yet.</div>'; return; }
+  if (!p) { box.innerHTML = '<div class="engine-note">' + esc(tx('noPoll')) + '</div>'; return; }
   var vals = pollWeighted ? p.weighted : p.counts;
   var tot = vals.reduce(function (a, b) { return a + b; }, 0) || 1;
-  box.innerHTML = '<div class="poll-q">' + esc(p.question) + '</div>' + p.options.map(function (o, i) {
+  var de = state.lang === 'de';
+  var question = de ? (p.question_de || p.question) : p.question;
+  var options = de && p.options_de ? p.options_de : p.options;
+  box.innerHTML = '<div class="poll-q">' + esc(question) + '</div>' + options.map(function (o, i) {
     var pct = Math.round(100 * vals[i] / tot);
     var mine = p.my_vote === i;
     return '<button class="poll-opt' + (mine ? ' mine' : '') + '" ' + (p.is_open ? 'onclick="votePoll(' + p.id + ',' + i + ')"' : 'disabled') + '>' +
@@ -996,32 +1179,52 @@ function renderPoll() {
       (mine ? '<span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>' : '') +
       '<span>' + esc(o) + '</span><span class="pct">' + pct + '%</span></button>';
   }).join('') +
-    '<div class="poll-foot"><span>' + p.total + ' votes · ' + (p.is_open ? 'open' : 'closed') + '</span>' +
-    '<label class="switch-label"><input type="checkbox" ' + (pollWeighted ? 'checked' : '') + ' onchange="pollWeighted=this.checked;renderPoll()"> Weighted by group</label></div>';
+    '<div class="poll-foot"><span>' + p.total + ' ' + esc(tx('votes')) + ' · ' + esc(tx(p.is_open ? 'pollOpen' : 'pollClosed')) + '</span>' +
+    (SIMPLE ? '' : '<label class="switch-label"><input type="checkbox" ' + (pollWeighted ? 'checked' : '') + ' onchange="pollWeighted=this.checked;renderPoll()"> ' + esc(tx('weighted')) + '</label>') + '</div>';
 }
 function votePoll(pid, i) { api('/api/townhall/poll/vote', { poll_id: pid, option: i }); }
 function togglePollForm() { $('pollForm').classList.toggle('show'); }
+function renderPollTemplates() {
+  var el = $('pollTemplate'); if (!el) return;
+  el.innerHTML = '<option value="">Ready-made poll, English + German (' + POLL_TPL.length + ')…</option>' +
+    POLL_TPL.map(function (t, i) { return '<option value="' + i + '">' + esc(t.en) + '</option>'; }).join('');
+}
+function usePollTemplate(i) {
+  var t = POLL_TPL[+i]; if (i === '' || !t) return;
+  $('pollQ').value = t.en; $('pollOpts').value = t.options.join('\n');
+  $('pollQDe').value = t.de; $('pollOptsDe').value = t.options_de.join('\n');
+}
 function createPoll() {
   var q = $('pollQ').value.trim(), opts = $('pollOpts').value.split('\n');
-  api('/api/townhall/poll', { question: q, options: opts }).then(function () {
-    $('pollQ').value = ''; $('pollOpts').value = ''; $('pollForm').classList.remove('show'); toast('Poll is live');
+  api('/api/townhall/poll', { question: q, options: opts, question_de: $('pollQDe').value.trim(), options_de: $('pollOptsDe').value.split('\n') }).then(function () {
+    ['pollQ', 'pollOpts', 'pollQDe', 'pollOptsDe'].forEach(function (i) { $(i).value = ''; });
+    $('pollTemplate').value = ''; $('pollForm').classList.remove('show'); toast('Poll is live');
   }).catch(function (e) { toast(e.message); });
 }
 function closePoll() { api('/api/townhall/poll/close', {}).then(function () { toast('Poll closed'); }); }
+var pulseEdit = false;
 function renderPulse() {
   var p = state.th.pulse;
+  // Simple view: once a worker has answered, fold the card to one line they can reopen.
+  var folded = SIMPLE && p.mine && !pulseEdit;
+  if ($('pulseCard')) $('pulseCard').classList.toggle('folded', !!folded);
+  if (folded) {
+    $('faces').innerHTML = '<div class="pulse-mine"><span class="pm-face">' + FACES[p.mine - 1].e + '</span><span>' + esc(tx('pulseMine')) + ': <b>' + esc(tx('face' + p.mine)) + '</b></span>' +
+      '<button class="btn-ghost sm" onclick="pulseEdit=true;renderPulse()">' + esc(tx('pulseChange')) + '</button></div>';
+    return;
+  }
   $('faces').innerHTML = FACES.map(function (f, i) {
-    return '<button class="face' + (p.mine === i + 1 ? ' on' : '') + '" onclick="sendPulse(' + (i + 1) + ')">' + f.e + '<span>' + f.l + '</span></button>';
+    return '<button class="face' + (p.mine === i + 1 ? ' on' : '') + '" onclick="sendPulse(' + (i + 1) + ')">' + f.e + '<span>' + esc(tx('face' + (i + 1))) + '</span></button>';
   }).join('');
   $('pulseAvg').innerHTML = (p.n ? p.avg : '–') + '<small> / 5 · ' + p.n + '</small>';
   var mx = Math.max.apply(null, p.dist.concat([1]));
   $('pulseDist').innerHTML = p.dist.map(function (c, i) { return '<div title="' + FACES[i].l + ': ' + c + '" style="height:' + (100 * c / mx) + '%"></div>'; }).join('');
 }
-function sendPulse(v) { api('/api/townhall/pulse', { value: v }); }
+function sendPulse(v) { pulseEdit = false; api('/api/townhall/pulse', { value: v }); }
 function renderReactions() {
   var r = state.th.reactions;
   $('reactions').innerHTML = REACTIONS.map(function (x) {
-    return '<button class="react-btn" onclick="react(\'' + x.k + '\', event)">' + x.e + '<span>' + x.l + '</span><b>' + (r[x.k] || 0) + '</b></button>';
+    return '<button class="react-btn" onclick="react(\'' + x.k + '\', event)">' + x.e + '<span>' + esc(tx('re_' + x.k)) + '</span><b>' + (r[x.k] || 0) + '</b></button>';
   }).join('');
 }
 function react(k) { api('/api/townhall/react', { kind: k }); }
@@ -1034,39 +1237,76 @@ function floatEmoji(e) {
 }
 function renderCharter() {
   var acts = state.th.actions, locked = state.th.charter_locked;
-  $('charterSub').innerHTML = locked ? '<span class="lock-pill">' + ICON.lock + esc(tx('agLocked')) + '</span>' : 'written live — everyone can agree or say "not yet"';
+  $('charterSub').innerHTML = locked ? '<span class="lock-pill">' + ICON.lock + esc(tx('agLocked')) + '</span>' : esc(tx('charterSub'));
   if ($('addActionBtn')) $('addActionBtn').classList.toggle('hidden', locked);
   if (locked && $('actionForm')) $('actionForm').classList.remove('show');
+  function votesHTML(a) {
+    return locked
+      ? '<span class="ag-tally">✓ ' + a.agree + ' · ✋ ' + a.not_yet + '</span>'
+      : '<div class="vote-btns"><button class="vote-btn agree' + (a.my_vote === 'agree' ? ' on' : '') + '" onclick="voteAction(' + a.id + ',\'agree\')">✓ ' + esc(tx('actAgree')) + ' ' + a.agree + '</button>' +
+        '<button class="vote-btn not_yet' + (a.my_vote === 'not_yet' ? ' on' : '') + '" onclick="voteAction(' + a.id + ',\'not_yet\')">✋ ' + esc(tx('actNotYet')) + ' ' + a.not_yet + '</button></div>';
+  }
   $('charterBody').innerHTML = acts.map(function (a) {
     var status = ME.isOrganizer && !locked
       ? '<select class="mini-select" onchange="setActionStatus(' + a.id + ',this.value)">' + ['proposed', 'agreed', 'unresolved'].map(function (s) {
           return '<option value="' + s + '"' + (a.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select>'
-      : '<span class="status-pill status-' + a.status + '">' + esc(statusWord(a.status)) + '</span>';
-    var votes = locked
-      ? '<span class="ag-tally">✓ ' + a.agree + ' · ✋ ' + a.not_yet + '</span>'
-      : '<div class="vote-btns"><button class="vote-btn agree' + (a.my_vote === 'agree' ? ' on' : '') + '" onclick="voteAction(' + a.id + ',\'agree\')">✓ Agree ' + a.agree + '</button>' +
-        '<button class="vote-btn not_yet' + (a.my_vote === 'not_yet' ? ' on' : '') + '" onclick="voteAction(' + a.id + ',\'not_yet\')">Not yet ' + a.not_yet + '</button></div>';
-    return '<tr><td><span class="tag" style="background:' + a.theme_color + '1A;color:' + a.theme_color + '">' + esc(themeLabel(a.theme)) + '</span></td>' +
-      '<td class="c-title"><div class="charter-title">' + esc(a.title) + '</div></td>' +
-      '<td style="color:var(--text-secondary)">' + esc(a.owner) + '</td><td style="color:var(--text-secondary)">' + esc(a.due) + '</td>' +
-      '<td>' + status + '</td><td>' + votes + '</td></tr>';
-  }).join('') || '<tr><td colspan="6" class="engine-note" style="padding:14px 8px">No actions yet — the Product Team adds them live during the meeting.</td></tr>';
+      : statusPill(a.status);
+    return '<tr><td><span class="tag tag-theme"><span class="tag-ic">' + themeIcon(a.theme) + '</span>' + esc(themeLabel(a.theme)) + '</span></td>' +
+      '<td class="c-title"><div class="charter-title">' + esc(actionTitle(a)) + '</div></td>' +
+      '<td style="color:var(--text-secondary)">' + esc(actionOwner(a)) + '</td><td style="color:var(--text-secondary)">' + esc(actionDue(a)) + '</td>' +
+      '<td>' + status + '</td><td class="c-votes">' + votesHTML(a) + '</td></tr>';
+  }).join('') || '<tr><td colspan="6" class="engine-note" style="padding:14px 8px">' + esc(tx('noActions')) + '</td></tr>';
+  // Simple view: one card per action, the decision buttons full width.
+  if ($('charterCards')) {
+    $('charterCards').innerHTML = acts.map(function (a) {
+      return '<div class="act-card"><div class="act-top"><span class="tag-ic">' + themeIcon(a.theme) + '</span>' + esc(themeLabel(a.theme)) + statusPill(locked ? 'signed' : a.status) + '</div>' +
+        '<div class="act-title">' + esc(actionTitle(a)) + '</div>' +
+        '<div class="act-meta">' + esc(tx('owner')) + ': ' + esc(actionOwner(a) || '—') + ' · ' + esc(tx('due')) + ': ' + esc(actionDue(a) || '—') + '</div>' +
+        votesHTML(a) + '</div>';
+    }).join('') || '<div class="engine-note">' + esc(tx('noActions')) + '</div>';
+  }
   if ($('actTheme') && !$('actTheme').options.length) {
     $('actTheme').innerHTML = themeKeys().map(function (k) { return '<option value="' + k + '">' + esc(THEMES[k].label) + '</option>'; }).join('');
+    renderActionTemplates();
   }
 }
 function voteAction(id, v) { api('/api/townhall/actions/' + id + '/vote', { vote: v }); }
 function setActionStatus(id, s) { api('/api/townhall/actions/' + id + '/status', { status: s }); }
 function toggleActionForm() { $('actionForm').classList.toggle('show'); }
+// Ready-made bilingual actions (bp_engine.ACTION_TEMPLATES): the demo has no live translation, so Priya
+// picks one, or types the German line herself. Workers see the German fields.
+var ACT_TPL = BOOT.actionTemplates || {}, POLL_TPL = BOOT.pollTemplates || [];
+function renderActionTemplates() {
+  var el = $('actTemplate'); if (!el) return;
+  var theme = $('actTheme').value, list = ACT_TPL[theme] || [];
+  el.innerHTML = '<option value="">' + (list.length ? 'Ready-made action, English + German (' + list.length + ')…' : 'No ready-made action for this theme — type both languages') + '</option>' +
+    list.map(function (t, i) { return '<option value="' + i + '">' + esc(t.en) + '</option>'; }).join('');
+}
+function useActionTemplate(i) {
+  var t = (ACT_TPL[$('actTheme').value] || [])[+i]; if (i === '' || !t) return;
+  $('actTitle').value = t.en; $('actTitleDe').value = t.de;
+  $('actOwner').value = t.owner; $('actOwnerDe').value = t.owner_de;
+  $('actDue').value = t.due; $('actDueDe').value = t.due_de;
+}
 function prefillAction(theme) {
   if (state.th && state.th.charter_locked) return;
   $('actionForm').classList.add('show'); $('actTheme').value = theme;
+  renderActionTemplates();
+  // Suggest the first ready-made action for this theme that is not on the charter yet.
+  var used = (state.th ? state.th.actions : []).map(function (a) { return a.title; });
+  var list = ACT_TPL[theme] || [], pick = -1;
+  for (var i = 0; i < list.length; i++) { if (used.indexOf(list[i].en) === -1) { pick = i; break; } }
+  if (pick >= 0) { $('actTemplate').value = String(pick); useActionTemplate(String(pick)); }
   scrollPanelTo($('actionForm'));
   setTimeout(function () { $('actTitle').focus(); }, 350);
 }
 function addAction() {
-  api('/api/townhall/actions', { theme: $('actTheme').value, title: $('actTitle').value, owner: $('actOwner').value, due: $('actDue').value })
-    .then(function () { ['actTitle', 'actOwner', 'actDue'].forEach(function (i) { $(i).value = ''; }); toast('Action added to the charter'); })
+  api('/api/townhall/actions', { theme: $('actTheme').value, title: $('actTitle').value, owner: $('actOwner').value, due: $('actDue').value,
+    title_de: $('actTitleDe').value, owner_de: $('actOwnerDe').value, due_de: $('actDueDe').value })
+    .then(function () {
+      ['actTitle', 'actOwner', 'actDue', 'actTitleDe', 'actOwnerDe', 'actDueDe'].forEach(function (i) { $(i).value = ''; });
+      $('actTemplate').value = ''; toast('Action added to the charter');
+    })
     .catch(function (e) { toast(e.message); });
 }
 function downloadCharter() {
@@ -1090,7 +1330,7 @@ function downloadCharter() {
 }
 function renderSurvey() {
   var th = state.th, s = th.survey, el = $('surveyCard');
-  var head = '<div class="th-card-head"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><h3>After the Town Hall</h3><span class="sub">did people feel heard?</span></div>';
+  var head = '<div class="th-card-head"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><h3>' + esc(tx('surveyTitle')) + '</h3><span class="sub">' + esc(tx('surveySub')) + '</span></div>';
   var body = '';
   if (ME.isOrganizer) {
     body = '<div class="stat-row"><div class="stat"><b>' + (s.n || 0) + '</b><span>responses</span></div>' +
@@ -1099,24 +1339,25 @@ function renderSurvey() {
       ((s.comments && s.comments.length) ? '<div style="margin-top:12px">' + s.comments.map(function (c) { return '<div class="concern-quote" style="margin-bottom:6px">“' + esc(c) + '”</div>'; }).join('') + '</div>' : '') +
       (th.phase !== 'after' ? '<div class="engine-note" style="margin-top:10px">The survey opens for everyone when you press “End &amp; open survey”.</div>' : '');
   } else if (th.phase !== 'after') {
-    body = '<div class="engine-note">A 2-question survey opens here when the Town Hall ends.</div>';
+    body = '<div class="engine-note">' + esc(tx('surveyLater')) + '</div>';
   } else if (s.done) {
-    body = '<div class="survey-done">✓ Thank you — your answer is in. The final action charter stays visible here.</div>';
+    body = '<div class="survey-done">' + esc(tx('surveyDone')) + '</div>';
   } else {
-    body = '<div class="survey-q">1. Did you feel heard in today’s Town Hall?</div><div class="scale">' + [1, 2, 3, 4, 5].map(function (n) {
+    var draftComment = $('surveyComment') ? $('surveyComment').value : '';
+    body = '<div class="survey-q">1. ' + esc(tx('sq1')) + '</div><div class="scale">' + [1, 2, 3, 4, 5].map(function (n) {
       return '<button class="' + (surveyDraft.heard === n ? 'on' : '') + '" onclick="surveyDraft.heard=' + n + ';renderSurvey()">' + n + '</button>'; }).join('') + '</div>' +
-      '<div class="scale-labels"><span>Not at all</span><span>Completely</span></div>' +
-      '<div class="survey-q">2. Does the action plan address your concerns?</div><div class="scale">' + [['yes', 'Yes'], ['partly', 'Partly'], ['no', 'No']].map(function (o) {
-      return '<button class="' + (surveyDraft.plan === o[0] ? 'on' : '') + '" onclick="surveyDraft.plan=\'' + o[0] + '\';renderSurvey()">' + o[1] + '</button>'; }).join('') + '</div>' +
-      '<textarea class="field" id="surveyComment" placeholder="Anything we missed? (optional, anonymous)"></textarea>' +
-      '<div style="margin-top:10px"><button class="btn-primary" onclick="submitSurvey()">Send anonymously</button></div>';
+      '<div class="scale-labels"><span>' + esc(tx('sqLow')) + '</span><span>' + esc(tx('sqHigh')) + '</span></div>' +
+      '<div class="survey-q">2. ' + esc(tx('sq2')) + '</div><div class="scale">' + ['yes', 'partly', 'no'].map(function (o) {
+      return '<button class="' + (surveyDraft.plan === o ? 'on' : '') + '" onclick="surveyDraft.plan=\'' + o + '\';renderSurvey()">' + esc(tx(o)) + '</button>'; }).join('') + '</div>' +
+      '<textarea class="field" id="surveyComment" placeholder="' + esc(tx('sqComment')) + '">' + esc(draftComment) + '</textarea>' +
+      '<div style="margin-top:10px"><button class="btn-primary" onclick="submitSurvey()">' + esc(tx('sendAnon')) + '</button></div>';
   }
   el.innerHTML = head + body;
 }
 function submitSurvey() {
-  if (!surveyDraft.heard || !surveyDraft.plan) { toast('Please answer both questions'); return; }
+  if (!surveyDraft.heard || !surveyDraft.plan) { toast(tx('answerBoth')); return; }
   api('/api/survey', { heard: surveyDraft.heard, plan: surveyDraft.plan, comment: ($('surveyComment') || {}).value || '' })
-    .then(function () { toast('Thanks for your feedback'); loadTownHall(); });
+    .then(function () { toast(tx('thanksFb')); loadTownHall(); });
 }
 function setPhase(p) { api('/api/townhall/phase', { phase: p }).then(function () { toast('Phase: ' + p); }); }
 
@@ -1136,7 +1377,7 @@ function toggleCaptions() {
   capOn = true;
   try { capRec.start(); setCapUI(true); } catch (x) { capOn = false; toast(tx('noSpeech')); }
 }
-function setCapUI(on) { $('capMicBtn').classList.toggle('recording', on); $('capMicLabel').textContent = on ? 'Stop' : 'Speak'; }
+function setCapUI(on) { $('capMicBtn').classList.toggle('recording', on); $('capMicLabel').textContent = tx(on ? 'capStop' : 'capSpeak'); }
 function setInterim(txt) {
   var box = $('captions');
   if (!txt) { if (capInterimEl) { capInterimEl.remove(); capInterimEl = null; } return; }
@@ -1149,7 +1390,12 @@ function addCaption(d) {
   var box = $('captions'), empty = box.querySelector('.cap-empty'); if (empty) empty.remove();
   var main = state.lang === 'de' ? d.de : d.en, alt = state.lang === 'de' ? d.en : d.de;
   var div = document.createElement('div'); div.className = 'cap';
-  div.innerHTML = '<div class="cap-who">' + esc(d.speaker) + ' · ' + esc(d.time) + ' · spoke ' + langName(d.lang) + '</div>' +
+  var who = d.speaker;
+  if (state.lang === 'de') {
+    var rk = Object.keys(ROLES).filter(function (k) { return ROLES[k].label === d.role_label && k !== 'organizer'; })[0];
+    if (rk) who = 'Anonym · ' + ROLES[rk].label_de;
+  }
+  div.innerHTML = '<div class="cap-who">' + esc(who) + ' · ' + esc(d.time) + ' · ' + esc(tx(d.lang === 'de' ? 'spokeDe' : 'spokeEn')) + '</div>' +
     '<div class="cap-main">' + esc(main) + '</div>' + (alt !== main ? '<div class="cap-alt">' + esc(alt) + '</div>' : '');
   if (capInterimEl) box.insertBefore(div, capInterimEl); else box.appendChild(div);
   while (box.querySelectorAll('.cap:not(.interim)').length > 12) box.querySelector('.cap:not(.interim)').remove();
@@ -1186,16 +1432,28 @@ function loadSettings() {
         }
         return '<div class="settings-row"><span class="settings-label">' + esc(it.label) + '</span>' + ctl + '</div>';
       }).join('') + '</div>';
-    }).join('') + '<div class="settings-section"><a class="btn-ghost signout-btn" href="/logout">' + esc(tx('signOut')) + ' · ' + esc(personName({ name: ME.name, role: ME.role })) + '</a></div>';
+    }).join('') + (ME.isOrganizer ? '' : '<div class="settings-section"><div class="settings-row"><span class="settings-label">' + esc(tx('simpleView')) + '</span>' +
+      '<label class="toggle-switch"><input type="checkbox"' + (SIMPLE ? ' checked' : '') + ' onchange="setSimple(this.checked)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>') +
+      '<div class="settings-section"><a class="btn-ghost signout-btn" href="/logout">' + esc(tx('signOut')) + ' · ' + esc(personName({ name: ME.name, role: ME.role })) + '</a></div>';
   });
+}
+
+function setSimple(on) {
+  try { localStorage.setItem('bp_simple', on ? '1' : '0'); } catch (e) {}
+  location.reload();
 }
 
 (function init() {
   $('langDe').classList.toggle('active', state.lang === 'de');
   $('langEn').classList.toggle('active', state.lang === 'en');
   initBig();
+  applyI18n();
+  renderShowAll();
+  renderPollTemplates();
+  $('tabLatest').classList.toggle('active', state.sort === 'latest');
+  $('tabTop').classList.toggle('active', state.sort === 'top');
   var ts = $('themeSelect');
-  themeKeys().forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = THEMES[k].label; ts.appendChild(o); });
+  themeKeys().forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = themeIcon(k) + ' ' + themeLabel(k); ts.appendChild(o); });
   try { new QRCode($('qrBox'), { text: BOOT.joinUrl, width: 128, height: 128, colorDark: '#0B3C5D', colorLight: '#ffffff' }); } catch (e) {}
   $('qrUrl').textContent = BOOT.joinUrl.replace(/^https?:\/\//, '');
   $('speechLang').value = speechLangCode(); $('capLang').value = speechLangCode();

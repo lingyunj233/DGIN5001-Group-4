@@ -65,7 +65,7 @@
     <thead><tr><th>Action</th><th>Owner</th><th>Due</th><th>Status</th><th>Agree / Not yet</th></tr></thead>
     <tbody>
       {% for a in snap.actions %}
-      <tr><td><b>{{ a.title }}</b><small>{{ a.theme }}</small></td><td>{{ a.owner }}</td><td>{{ a.due }}</td><td>{{ a.status }}</td><td>{{ a.agree }} / {{ a.not_yet }}</td></tr>
+      <tr><td><b>{{ a.title }}</b>{% if a.title_de and a.title_de != a.title %}<small>{{ a.title_de }}</small>{% endif %}<small>{{ a.theme }}</small></td><td>{{ a.owner }}{% if a.owner_de and a.owner_de != a.owner %}<small>{{ a.owner_de }}</small>{% endif %}</td><td>{{ a.due }}</td><td>{{ a.status }}</td><td>{{ a.agree }} / {{ a.not_yet }}</td></tr>
       {% else %}
       <tr><td colspan="5">No actions yet.</td></tr>
       {% endfor %}
