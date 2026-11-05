@@ -7,10 +7,10 @@ import urllib.parse
 import urllib.request
 
 ROLES = {
-    'line_worker':    {'label': 'Line Worker',     'label_de': 'Bandarbeiter/in',      'weight': 1.5, 'color': '#5598E7'},
-    'safety_officer': {'label': 'Safety Officer',  'label_de': 'Sicherheits\u00adfachkraft', 'weight': 1.3, 'color': '#E07A00'},
-    'union_rep':      {'label': 'Union Rep',       'label_de': 'Betriebsrat',          'weight': 1.2, 'color': '#2F9E6E'},
-    'director':       {'label': 'Plant Director',  'label_de': 'Werksleitung',         'weight': 1.0, 'color': '#8B4F13'},
+    'line_worker':    {'label': 'Line Worker',     'label_de': 'Bandarbeiter/in',      'weight': 1.5, 'color': '#64748B'},
+    'safety_officer': {'label': 'Safety Officer',  'label_de': 'Sicherheits\u00adfachkraft', 'weight': 1.3, 'color': '#64748B'},
+    'union_rep':      {'label': 'Union Rep',       'label_de': 'Betriebsrat',          'weight': 1.2, 'color': '#64748B'},
+    'director':       {'label': 'Plant Director',  'label_de': 'Werksleitung',         'weight': 1.0, 'color': '#64748B'},
     'organizer':      {'label': 'Product Team',    'label_de': 'Produktteam',       'weight': 0.0, 'color': '#0B3C5D'},
 }
 PUBLIC_ROLES = ['line_worker', 'safety_officer', 'union_rep', 'director']
@@ -20,7 +20,7 @@ def role_weight(role):
 
 THEMES = {
     'safety': {
-        'label': 'Physical Safety', 'color': '#E5484D',
+        'label': 'Physical Safety', 'color': '#C9302C',
         'kw': ['safety', 'unsafe', 'collision', 'collide', 'crash', 'injur', 'accident', 'danger', 'hazard',
                'emergency stop', 'e-stop', 'hurt', 'near miss', 'near-miss', 'sensor', 'blind spot',
                'sicherheit', 'unsicher', 'kollision', 'zusammenstoß', 'zusammenstoss', 'verletz', 'unfall',
@@ -34,7 +34,7 @@ THEMES = {
                'hinterher', 'rhythmus', 'belastung'],
     },
     'jobs': {
-        'label': 'Job Security', 'color': '#7C5CD6',
+        'label': 'Job Security', 'color': '#8B5CF6',
         'kw': ['job', 'replace', 'replaced', 'layoff', 'laid off', 'fired', 'redundan', 'future', 'contract',
                'my position', 'unemploy', 'displace',
                'arbeitsplatz', 'arbeitsplätze', 'ersetzt', 'ersetzen', 'entlass', 'kündig', 'zukunft',
@@ -48,22 +48,24 @@ THEMES = {
                'betriebsvereinbarung', 'ig metall', 'gefragt', 'mitspracherecht'],
     },
     'training': {
-        'label': 'Training & Skills', 'color': '#C2418C',
+        'label': 'Training & Skills', 'color': '#E87BA4',
         'kw': ['training', 'train ', 'trained', 'learn', 'reskill', 'upskill', 'skill', 'course', 'manual',
                'instruction', 'explain',
                'schulung', 'weiterbildung', 'lernen', 'qualifizier', 'einweisung', 'anleitung', 'erklär',
                'umschulung'],
     },
     'targets': {
-        'label': 'Production Targets & Pressure', 'color': '#5F7D95',
+        'label': 'Production Targets & Pressure', 'color': '#3B82C4',
         'kw': ['target', 'quota', 'pressure', 'deadline', 'output', 'kpi', 'management', 'bonus',
                'ziel', 'zielvorgabe', 'quote', 'druck', 'stückzahl', 'stückzahlen', 'vorgabe', 'leistung', 'chef'],
     },
 }
 THEME_OTHER = {'label': 'Other', 'label_de': 'Sonstiges', 'color': '#94A3B8', 'icon': '💬'}
 
-# Themes are identified by icon + name, never by colour: colour is reserved for
-# stakeholder groups (avatars, role badges) and for status (live, agreed, not yet).
+# Colour has one job: it shows the theme (with the theme name next to it). Stakeholder groups are shown
+# in words and have no colour of their own (bars that split by group use shades of one slate, in app.js);
+# status (live, agreed, not yet) is a text pill.
+# Theme colours were checked pairwise for normal and colour-blind vision.
 THEME_ICONS = {
     'safety': '⛑️', 'pacing': '⏱️', 'jobs': '💼',
     'codetermination': '⚖️', 'training': '🎓', 'targets': '📈',
@@ -518,9 +520,12 @@ def post_score(author_role, supporter_roles, reply_count):
 def summarize_theme(theme_key, posts, lang='en'):
     if not posts:
         return ''
+    # Count every voice by its own group (author and each "me too"), the same way the bar does.
     roles = {}
     for p in posts:
-        roles[p['role']] = roles.get(p['role'], 0) + 1 + len(p.get('supporter_roles', []))
+        roles[p['role']] = roles.get(p['role'], 0) + 1
+        for r in p.get('supporter_roles', []):
+            roles[r] = roles.get(r, 0) + 1
     top_role = max(roles, key=roles.get)
     share = round(100 * roles[top_role] / max(1, sum(roles.values())))
     if lang == 'de':

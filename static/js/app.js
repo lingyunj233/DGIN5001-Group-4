@@ -82,7 +82,7 @@ var TX2 = {
     pinned: 'Pinned · Company broadcast', feedEmpty: 'Nothing here yet. Be the first to share a concern — it stays anonymous.',
     ctaQuick: 'Report a problem', ctaWrite: 'Write', sheetWrite: 'Write a post',
     capTitle: 'Live captions', capSub: 'speech → text → German ⇄ English, for everyone',
-    capEmpty: 'Captions appear here when someone speaks.', capPh: '…or type a question / caption and press Enter',
+    capEmpty: 'Captions appear here when someone speaks.', capBefore: 'Starts {when}. Captions will appear here.', capAfter: 'The town hall has ended.', bfReport: 'Report a problem in the Square ›', capPh: '…or type a question / caption and press Enter',
     capSpeak: 'Speak', capStop: 'Stop', spokeDe: 'spoke German', spokeEn: 'spoke English',
     impactTitle: 'Biggest impact first', impactSub: 'from the Square, role-weighted',
     pollTitle: 'Live poll', noPoll: 'No poll yet.', votes: 'votes', pollOpen: 'open', pollClosed: 'closed', weighted: 'Weighted by group',
@@ -119,7 +119,7 @@ var TX2 = {
     pinned: 'Angeheftet · Mitteilung des Produktteams', feedEmpty: 'Noch nichts da. Teile als Erste/r ein Anliegen – es bleibt anonym.',
     ctaQuick: 'Problem melden', ctaWrite: 'Schreiben', sheetWrite: 'Beitrag schreiben',
     capTitle: 'Live-Untertitel', capSub: 'Sprache → Text → Deutsch ⇄ Englisch, für alle',
-    capEmpty: 'Hier erscheinen Untertitel, sobald jemand spricht.', capPh: '… oder Frage tippen und Enter drücken',
+    capEmpty: 'Hier erscheinen Untertitel, sobald jemand spricht.', capBefore: 'Beginn: {when}. Dann erscheinen hier die Untertitel.', capAfter: 'Das Town Hall ist vorbei.', bfReport: 'Problem im Square melden ›', capPh: '… oder Frage tippen und Enter drücken',
     capSpeak: 'Sprechen', capStop: 'Stopp', spokeDe: 'auf Deutsch', spokeEn: 'auf Englisch',
     impactTitle: 'Was am meisten bewegt', impactSub: 'aus dem Square, nach Gruppe gewichtet',
     pollTitle: 'Abstimmung', noPoll: 'Noch keine Abstimmung.', votes: 'Stimmen', pollOpen: 'offen', pollClosed: 'geschlossen', weighted: 'Nach Gruppe gewichtet',
@@ -164,11 +164,27 @@ if (SIMPLE) { document.body.classList.add('simple'); state.sort = 'top'; }
 
 function tx(k) { var d = TX[state.lang] || TX.en; return d[k] != null ? d[k] : (TX.en[k] != null ? TX.en[k] : k); }
 function themeLabel(key) { var t = THEMES[key] || THEMES.other; return state.lang === 'de' ? (t.label_de || t.label) : t.label; }
-function themeIcon(key) { return (THEMES[key] || THEMES.other).icon || ''; }
-// Status is the only place red/amber/green appear in content; it always carries an icon and a word.
-var STATUS_ICON = { proposed: '○', agreed: '✓', unresolved: '✋', signed: '🔒' };
+function themeColor(key) { return (THEMES[key] || THEMES.other).color; }
+// A small colour square is the theme's mark; the theme name always sits next to it.
+function themeDot(key) { return '<span class="tdot" style="background:' + themeColor(key) + '"></span>'; }
+// A deeper shade of each theme colour, used when a tile is filled, so white text stays readable (at least 4.5:1).
+var THEME_FILL = { safety: '#C9302C', pacing: '#BB5800', jobs: '#8555EF', codetermination: '#008557', training: '#B8507A', targets: '#3077B9' };
+function themeFill(key) { return THEME_FILL[key] || themeColor(key); }
+// Groups never get a hue (hue means theme). Where a bar splits by group it uses one slate scale,
+// always in the same order: line workers darkest, then safety, works council, plant management.
+var GROUP_ORDER = ['line_worker', 'safety_officer', 'union_rep', 'director'];
+var GROUP_SHADE = { line_worker: '#0B3C5D', safety_officer: '#536C81', union_rep: '#899BAA', director: '#BAC6D0' };
+function groupShade(k) { return GROUP_SHADE[k] || GROUP_SHADE.director; }
+function groupLabel(k) { return state.lang === 'de' ? ROLES[k].label_de.replace('\u00ad', '') : ROLES[k].label; }
+function groupParts(mix) { return GROUP_ORDER.filter(function (k) { return mix[k]; }).map(function (k) { return [k, mix[k]]; }); }
+function groupLegend() {
+  return GROUP_ORDER.filter(function (k) { return ROLES[k]; }).map(function (k) {
+    return '<span><i style="background:' + groupShade(k) + '"></i>' + esc(groupLabel(k)) + '</span>';
+  }).join('');
+}
+// Status (proposed, agreed, not yet, signed) is a text pill, never a colour on its own.
 function statusPill(s) {
-  return '<span class="status-pill status-' + esc(s) + '"><i>' + (STATUS_ICON[s] || '○') + '</i>' + esc(tx('st_' + s)) + '</span>';
+  return '<span class="status-pill status-' + esc(s) + '">' + esc(tx('st_' + s)) + '</span>';
 }
 function actionTitle(a) { return state.lang === 'de' ? (a.title_de || a.title) : a.title; }
 function actionOwner(a) { return state.lang === 'de' ? (a.owner_de || a.owner) : a.owner; }
@@ -227,7 +243,7 @@ function avatarHTML(p, cls) {
 }
 function roleBadge(p) {
   if (p.role === 'organizer') return '<svg class="verified" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l2.6 2.2 3.4-.3.9 3.3 3 1.6-1.2 3.2 1.2 3.2-3 1.6-.9 3.3-3.4-.3L12 23l-2.6-2.2-3.4.3-.9-3.3-3-1.6L3.3 13 2.1 9.8l3-1.6.9-3.3 3.4.3z"/><path d="M8 12.5l2.6 2.5L16 9.5" stroke="#fff" stroke-width="2" fill="none"/></svg>';
-  return '<span class="role-badge" style="background:' + esc(p.color) + '">' + esc(roleLabel(p)) + '</span>';
+  return '<span class="role-badge">' + esc(roleLabel(p)) + '</span>';
 }
 var _trSeq = 0;
 function textBlock(o, cls) {
@@ -340,23 +356,23 @@ function renderThemeFilter() {
   ((state.insights && state.insights.themes) || []).forEach(function (t) { counts[t.key] = t.posts; });
   var keys = themeKeys();
   var total = state.insights ? state.insights.total_posts : '';
-  var html = '<button class="theme-filter-item' + (state.theme ? '' : ' active') + '" onclick="setThemeFilter(\'\')"><span class="theme-ic">☰</span>' + esc(tx('allConcerns')) + '<span class="count">' + total + '</span></button>';
+  var html = '<button class="theme-filter-item' + (state.theme ? '' : ' active') + '" onclick="setThemeFilter(\'\')"><span class="tdot all"></span>' + esc(tx('allConcerns')) + '<span class="count">' + total + '</span></button>';
   var chips = '<button class="tag theme-chip' + (state.theme ? '' : ' on') + '" onclick="setThemeFilter(\'\')">' + esc(tx('all')) + '</button>';
   keys.forEach(function (k) {
-    html += '<button class="theme-filter-item' + (state.theme === k ? ' active' : '') + '" onclick="setThemeFilter(\'' + k + '\')"><span class="theme-ic">' + themeIcon(k) + '</span>' + esc(themeLabel(k)) + '<span class="count">' + (counts[k] || 0) + '</span></button>';
-    chips += '<button class="tag theme-chip' + (state.theme === k ? ' on' : '') + '" onclick="setThemeFilter(\'' + k + '\')">' + themeIcon(k) + ' ' + esc(themeLabel(k)) + '</button>';
+    html += '<button class="theme-filter-item' + (state.theme === k ? ' active' : '') + '" onclick="setThemeFilter(\'' + k + '\')">' + themeDot(k) + esc(themeLabel(k)) + '<span class="count">' + (counts[k] || 0) + '</span></button>';
+    chips += '<button class="tag theme-chip' + (state.theme === k ? ' on' : '') + '" style="--tc:' + themeColor(k) + '" onclick="setThemeFilter(\'' + k + '\')">' + themeDot(k) + esc(themeLabel(k)) + '</button>';
   });
   $('themeFilter').innerHTML = html;
   $('chipRow').innerHTML = chips;
 }
 function themeTag(p) {
   if (!p.theme || p.theme === 'other' && p.is_broadcast) return '';
-  return '<span class="tag tag-theme"><span class="tag-ic">' + themeIcon(p.theme) + '</span>' + esc(themeLabel(p.theme)) + '</span>';
+  return '<span class="tag tag-theme" style="background:' + themeColor(p.theme) + '1F">' + themeDot(p.theme) + esc(themeLabel(p.theme)) + '</span>';
 }
 function quickChips(p) {
   var html = (p.tags || []).map(function (k) {
     var t = QT[k]; if (!t) return '';
-    return '<span class="qchip"><span class="qchip-i">' + t.icon + '</span>' + esc(tagLabel(k)) + '</span>';
+    return '<span class="qchip" style="--tc:' + themeColor(t.theme) + '"><span class="qchip-i">' + t.icon + '</span>' + esc(tagLabel(k)) + '</span>';
   }).join('');
   if (p.sentiment && SENTS[p.sentiment]) html += '<span class="feel-chip">' + SENTS[p.sentiment].face + ' ' + esc(feelLabel(p.sentiment)) + '</span>';
   return html ? '<div class="qchips">' + html + '</div>' : '';
@@ -366,12 +382,12 @@ function statusWord(s) {
 }
 function actionLink(p) {
   if (!p.action) return '';
-  var st = p.action.status, mark = '<i class="st-ic">' + (STATUS_ICON[st] || '○') + '</i>';
+  var st = p.action.status;
   if (SIMPLE) {
     // One short line instead of repeating the full action title under every post.
-    return '<div class="post-action-link mini st-' + esc(st) + '">' + ICON.pen + '<span>' + esc(tx('actionLink')) + ' · ' + mark + esc(tx('st_' + st)) + '</span></div>';
+    return '<div class="post-action-link mini st-' + esc(st) + '">' + ICON.pen + '<span>' + esc(tx('actionLink')) + ' · ' + esc(tx('st_' + st)) + '</span></div>';
   }
-  return '<div class="post-action-link st-' + esc(st) + '">' + ICON.pen + '<span>' + esc(tx('actionLink')) + ': <b>' + esc(actionTitle(p.action)) + '</b> · ' + mark + esc(tx('st_' + st)) + '</span></div>';
+  return '<div class="post-action-link st-' + esc(st) + '">' + ICON.pen + '<span>' + esc(tx('actionLink')) + ': <b>' + esc(actionTitle(p.action)) + '</b> · ' + esc(tx('st_' + st)) + '</span></div>';
 }
 function postHTML(p) {
   var a = p.author;
@@ -567,7 +583,7 @@ function renderQuick() {
   var el = $('quickBody'); if (!el) return;
   var tiles = BOOT.quickOrder.map(function (k) {
     var t = QT[k], on = quick.tags.indexOf(k) !== -1;
-    return '<button class="qtag' + (on ? ' on' : '') + '" aria-pressed="' + on + '" onclick="toggleQuickTag(\'' + k + '\')">' +
+    return '<button class="qtag' + (on ? ' on' : '') + '" style="--tc:' + themeColor(t.theme) + ';--tf:' + themeFill(t.theme) + '" aria-pressed="' + on + '" onclick="toggleQuickTag(\'' + k + '\')">' +
       '<span class="qi">' + t.icon + '</span><span class="ql">' + esc(tagLabel(k)) + '</span>' + (on ? '<span class="qcheck">✓</span>' : '') + '</button>';
   }).join('');
   var zones = ZONES.map(function (z, i) {
@@ -701,8 +717,8 @@ function loadInsights() {
 }
 function mixBar(mix) {
   var total = 0; Object.keys(mix).forEach(function (k) { total += mix[k]; });
-  return '<div class="mixbar">' + Object.keys(ROLES).filter(function (k) { return mix[k]; }).map(function (k) {
-    return '<span style="width:' + (100 * mix[k] / total) + '%;background:' + ROLES[k].color + '" title="' + esc(ROLES[k].label) + ': ' + mix[k] + '"></span>';
+  return '<div class="mixbar">' + groupParts(mix).map(function (p) {
+    return '<span style="width:' + (100 * p[1] / total) + '%;background:' + groupShade(p[0]) + '" title="' + esc(groupLabel(p[0])) + ': ' + p[1] + '"></span>';
   }).join('') + '</div>';
 }
 function renderInsightsPanel() {
@@ -716,18 +732,16 @@ function renderInsightsPanel() {
       '<div class="ins-stat"><b>' + d.participants + '</b><span>joined</span></div>' +
       '<div class="ins-stat"><b>' + d.de_share + '%</b><span>in German</span></div></div>' +
       (d.tag_totals && d.tag_totals.length ? '<div class="ins-section">Most reported (quick reports)</div><div class="qchips">' +
-        d.tag_totals.slice(0, 6).map(function (kv) { var t = QT[kv[0]]; return t ? '<span class="qchip sm"><span class="qchip-i">' + t.icon + '</span>' + esc(tagLabel(kv[0])) + ' <b>×' + kv[1] + '</b></span>' : ''; }).join('') + '</div>' : '') +
+        d.tag_totals.slice(0, 6).map(function (kv) { var t = QT[kv[0]]; return t ? '<span class="qchip sm" style="--tc:' + themeColor(t.theme) + '"><span class="qchip-i">' + t.icon + '</span>' + esc(tagLabel(kv[0])) + ' <b>×' + kv[1] + '</b></span>' : ''; }).join('') + '</div>' : '') +
       '<div class="ins-section">Themes by weighted impact</div>' +
       d.themes.map(function (t) {
-        return '<div class="ins-theme" onclick="setThemeFilter(\'' + t.key + '\')">' +
-          '<div class="ins-theme-top"><span class="ins-theme-name"><span class="tag-ic">' + themeIcon(t.key) + '</span> ' + esc(themeLabel(t.key)) + '</span><span class="ins-theme-score">' + t.score + '</span></div>' +
-          '<div class="mixbar" style="height:4px;margin-top:6px"><span class="impact-fill" style="width:' + (100 * t.score / max) + '%"></span></div>' +
+        return '<div class="ins-theme" style="border-left-color:' + themeColor(t.key) + '" onclick="setThemeFilter(\'' + t.key + '\')">' +
+          '<div class="ins-theme-top"><span class="ins-theme-name">' + esc(themeLabel(t.key)) + '</span><span class="ins-theme-score">' + t.score + '</span></div>' +
+          '<div class="mixbar" style="height:4px;margin-top:6px"><span style="width:' + (100 * t.score / max) + '%;background:' + themeColor(t.key) + '"></span></div>' +
           '<div class="ins-theme-sum">' + esc(t.summary) + ' · ' + t.support + ' "me too"</div>' +
           mixBar(t.role_mix) + '</div>';
       }).join('') +
-      '<div class="legend">' + Object.keys(ROLES).filter(function (k) { return k !== 'organizer'; }).map(function (k) {
-        return '<span><i style="background:' + ROLES[k].color + '"></i>' + esc(ROLES[k].label) + ' ×' + ROLES[k].weight + '</span>';
-      }).join('') + '</div>' +
+      '<div class="legend">' + groupLegend() + '</div>' +
       '<div class="engine-note">Priority = author weight + weighted "me too" + replies. Line workers count 1.5× so shop-floor voices rise first. ' +
       'Translation engine: ' + esc(d.tr_mode) + '.</div>';
   } else if (state.mode === 'voice') {
@@ -978,7 +992,7 @@ function renderNowBanner() {
     return;
   }
   var mins = Math.max(0, Math.floor((clockNow() - f.started) / 60));
-  el.innerHTML = '<span class="now-dot"></span><span class="now-label">' + esc(tx('nowDiscussing')) + '</span><b><span class="now-ic">' + themeIcon(f.key) + '</span>' + esc(themeLabel(f.key)) + '</b>' +
+  el.innerHTML = '<span class="now-dot"></span><span class="now-label">' + esc(tx('nowDiscussing')) + '</span><b>' + themeDot(f.key) + esc(themeLabel(f.key)) + '</b>' +
     (ME.isOrganizer ? '<span class="now-min">' + mins + ' min</span><button class="btn-ghost sm" onclick="setFocus(\'\')">Clear</button>'
       : '<span class="now-hint">' + esc(tx('nowHint')) + '</span>');
 }
@@ -993,14 +1007,14 @@ function renderFocus() {
   }).join('');
   el.innerHTML = cards.map(function (c, i) {
     var tags = (c.tag_counts || []).slice(0, 3).map(function (kv) {
-      var t = QT[kv[0]]; return t ? '<span class="qchip sm"><span class="qchip-i">' + t.icon + '</span>' + esc(t.en) + ' <b>×' + kv[1] + '</b></span>' : '';
+      var t = QT[kv[0]]; return t ? '<span class="qchip sm" style="--tc:' + c.color + '"><span class="qchip-i">' + t.icon + '</span>' + esc(t.en) + ' <b>×' + kv[1] + '</b></span>' : '';
     }).join('');
     var feel = c.sentiment_avg ? '<span class="fstat">' + SENTS[Math.min(5, Math.max(1, Math.round(c.sentiment_avg)))].face + ' ' + c.sentiment_avg + '/5</span>' : '';
     var acts = (c.actions || []).map(function (a) {
       return '<div class="fact">' + statusPill(a.status) + esc(a.title) + ' <small>✓' + a.agree + ' · ✋' + a.not_yet + '</small></div>';
     }).join('');
-    return '<div class="fcard' + (c.is_focus ? ' focus' : '') + '">' +
-      '<div class="fhead"><span class="frank">' + (i + 1) + '</span><span class="ftitle"><span class="ftitle-ic">' + themeIcon(c.key) + '</span>' + esc(c.label) + '</span><span class="fscore" title="Role-weighted priority">' + c.score + '</span></div>' +
+    return '<div class="fcard' + (c.is_focus ? ' focus' : '') + '" style="--tc:' + c.color + '">' +
+      '<div class="fhead"><span class="frank">' + (i + 1) + '</span><span class="ftitle">' + esc(c.label) + '</span><span class="fscore" title="Role-weighted priority">' + c.score + '</span></div>' +
       '<div class="fstats"><span class="fstat">' + c.posts + ' reports</span><span class="fstat">' + c.support + ' me too</span>' +
         '<span class="fstat">' + c.line_share + '% line workers</span>' + feel + (c.recent ? '<span class="fstat rise">↑ ' + c.recent + ' new in 15 min</span>' : '') + '</div>' +
       '<div class="fsum"><span class="fsum-tag">' + (c.summary_engine === 'llm' ? 'AI summary' : 'Summary') + '</span>' + esc(c.summary_text) + '</div>' +
@@ -1098,6 +1112,10 @@ function renderTownHall() {
   // Body classes drive which Town Hall cards the simple view shows in each phase (see app.css).
   var bc = document.body.classList;
   bc.remove('ph-before', 'ph-live', 'ph-after'); bc.add('ph-' + th.phase);
+  // The live box sits on top in every phase: before the meeting it says when it starts.
+  var capEmpty = document.querySelector('#captions .cap-empty');
+  if (capEmpty) capEmpty.textContent = th.phase === 'before' ? tx('capBefore').replace('{when}', de ? th.when_de : th.when)
+    : th.phase === 'after' ? tx('capAfter') : tx('capEmpty');
   bc.toggle('poll-open', !!(th.poll && th.poll.is_open));
   bc.toggle('ag-open', !!(th.agreement && th.agreement.open && !th.agreement.locked));
   bc.toggle('ag-locked', !!(th.agreement && th.agreement.locked));
@@ -1107,13 +1125,13 @@ function renderTownHall() {
   if ($('concernList')) {
     $('concernList').innerHTML = top.map(function (t, i) {
       var total = 0; Object.keys(t.role_mix).forEach(function (k) { total += t.role_mix[k]; });
-      var seg = Object.keys(ROLES).filter(function (k) { return t.role_mix[k]; }).map(function (k) {
-        return '<span style="width:' + (100 * t.score / max) * (t.role_mix[k] / total) + '%;background:' + ROLES[k].color + '" title="' + esc(ROLES[k].label) + '"></span>';
+      var seg = groupParts(t.role_mix).map(function (p) {
+        return '<span style="width:' + (100 * t.score / max) * (p[1] / total) + '%;background:' + groupShade(p[0]) + '" title="' + esc(groupLabel(p[0])) + '"></span>';
       }).join('');
       var focus = th.focus && th.focus.key === t.key && th.phase === 'live';
       var quote = state.lang === 'de' ? (t.top_quote_de || t.top_quote) : t.top_quote;
       return '<div class="concern' + (focus ? ' is-focus' : '') + '"><span class="concern-rank">#' + (i + 1) + '</span>' +
-        '<span class="concern-title"><span class="concern-ic">' + themeIcon(t.key) + '</span>' + esc(themeLabel(t.key)) + (focus ? '<span class="now-chip">' + esc(tx('nowDiscussing')) + '</span>' : '') + '</span>' +
+        '<span class="concern-title">' + themeDot(t.key) + esc(themeLabel(t.key)) + (focus ? '<span class="now-chip">' + esc(tx('nowDiscussing')) + '</span>' : '') + '</span>' +
         '<span class="concern-score">' + t.score + '</span>' +
         '<div class="concern-bar">' + seg + '</div>' +
         '<div class="concern-meta">' + esc(concernSummary(t)) + '</div>' +
@@ -1121,9 +1139,7 @@ function renderTownHall() {
       '</div>';
     }).join('') || '<div class="feed-empty">No concerns posted yet.</div>';
     var roleOrder = ['line_worker', 'safety_officer', 'union_rep', 'director'].filter(function (k) { return ROLES[k]; });
-    $('roleLegend').innerHTML = roleOrder.map(function (k) {
-      return '<span><i style="background:' + ROLES[k].color + '"></i>' + esc(state.lang === 'de' ? ROLES[k].label_de : ROLES[k].label) + '</span>';
-    }).join('');
+    $('roleLegend').innerHTML = groupLegend();
     // The weighting is public: say exactly how the score is made.
     if ($('weightNote')) $('weightNote').textContent = tx('weightNote') + ' ' + roleOrder.map(function (k) {
       return (state.lang === 'de' ? ROLES[k].label_de.replace('\u00ad', '') : ROLES[k].label) + ' ' + ROLES[k].weight.toFixed(1).replace('.', state.lang === 'de' ? ',' : '.') + '×';
@@ -1156,9 +1172,9 @@ function renderBefore() {
   var top = (state.th.top_concerns || []).slice(0, 3);
   el.innerHTML = '<div class="bf-title">' + esc(tx('bfTitle')) + '</div>' +
     '<p class="bf-text">' + esc(tx('bfText')) + '</p>' +
-    '<button class="cta-big" onclick="openReport(\'quick\')"><span class="cta-ic">⚡</span><span>' + esc(tx('ctaQuick')) + '</span></button>' +
+    '<button class="bf-report" onclick="openReport(\'quick\')">' + esc(tx('bfReport')) + '</button>' +
     (top.length ? '<div class="bf-sub">' + esc(tx('bfTop')) + '</div><ol class="bf-list">' + top.map(function (t) {
-      return '<li><span class="bf-ic">' + themeIcon(t.key) + '</span><span class="bf-name">' + esc(themeLabel(t.key)) + '</span>' +
+      return '<li>' + themeDot(t.key) + '<span class="bf-name">' + esc(themeLabel(t.key)) + '</span>' +
         '<span class="bf-n">' + t.posts + ' ' + esc(tx('reports')) + ' · ' + t.support + ' ' + esc(tx('metoo')) + '</span></li>';
     }).join('') + '</ol><button class="bf-more" onclick="toggleAllThemes()"></button>' : '');
   renderShowAll();
@@ -1251,7 +1267,7 @@ function renderCharter() {
       ? '<select class="mini-select" onchange="setActionStatus(' + a.id + ',this.value)">' + ['proposed', 'agreed', 'unresolved'].map(function (s) {
           return '<option value="' + s + '"' + (a.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select>'
       : statusPill(a.status);
-    return '<tr><td><span class="tag tag-theme"><span class="tag-ic">' + themeIcon(a.theme) + '</span>' + esc(themeLabel(a.theme)) + '</span></td>' +
+    return '<tr><td><span class="tag tag-theme" style="background:' + themeColor(a.theme) + '1F">' + themeDot(a.theme) + esc(themeLabel(a.theme)) + '</span></td>' +
       '<td class="c-title"><div class="charter-title">' + esc(actionTitle(a)) + '</div></td>' +
       '<td style="color:var(--text-secondary)">' + esc(actionOwner(a)) + '</td><td style="color:var(--text-secondary)">' + esc(actionDue(a)) + '</td>' +
       '<td>' + status + '</td><td class="c-votes">' + votesHTML(a) + '</td></tr>';
@@ -1259,7 +1275,7 @@ function renderCharter() {
   // Simple view: one card per action, the decision buttons full width.
   if ($('charterCards')) {
     $('charterCards').innerHTML = acts.map(function (a) {
-      return '<div class="act-card"><div class="act-top"><span class="tag-ic">' + themeIcon(a.theme) + '</span>' + esc(themeLabel(a.theme)) + statusPill(locked ? 'signed' : a.status) + '</div>' +
+      return '<div class="act-card"><div class="act-top">' + themeDot(a.theme) + esc(themeLabel(a.theme)) + statusPill(locked ? 'signed' : a.status) + '</div>' +
         '<div class="act-title">' + esc(actionTitle(a)) + '</div>' +
         '<div class="act-meta">' + esc(tx('owner')) + ': ' + esc(actionOwner(a) || '—') + ' · ' + esc(tx('due')) + ': ' + esc(actionDue(a) || '—') + '</div>' +
         votesHTML(a) + '</div>';
@@ -1453,7 +1469,7 @@ function setSimple(on) {
   $('tabLatest').classList.toggle('active', state.sort === 'latest');
   $('tabTop').classList.toggle('active', state.sort === 'top');
   var ts = $('themeSelect');
-  themeKeys().forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = themeIcon(k) + ' ' + themeLabel(k); ts.appendChild(o); });
+  themeKeys().forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = themeLabel(k); ts.appendChild(o); });
   try { new QRCode($('qrBox'), { text: BOOT.joinUrl, width: 128, height: 128, colorDark: '#0B3C5D', colorLight: '#ffffff' }); } catch (e) {}
   $('qrUrl').textContent = BOOT.joinUrl.replace(/^https?:\/\//, '');
   $('speechLang').value = speechLangCode(); $('capLang').value = speechLangCode();

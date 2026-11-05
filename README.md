@@ -67,9 +67,9 @@ into English, grouped into themes and condensed into three ranked focus cards.
 | One-swipe feeling slider (😟 → 😊) | Workers, Priya | Capture how strongly people feel, not only what the problem is |
 | Voice to text in the quick report, the long post and Chat (German or English) | Workers in gloves or with busy hands | Say more without a keyboard; the phone keyboard's microphone is the fallback |
 | Glove mode (**Aa** button): bigger text, larger tap targets, stronger contrast; on by default on touch screens, except for the Product Team and plant directors | Shop-floor workers | Usable with gloves and at a glance |
-| Simple view (default for line workers, switchable in Settings): the report form sits behind one **Problem melden** button; the Town Hall shows only what the current phase needs, with the live topic, reaction buttons and poll at the top; scores, role breakdowns and other facilitator analytics are hidden | Shop-floor workers on phones | Find the one thing to do without scrolling through dashboards |
+| Simple view (default for line workers, switchable in Settings): the report form sits behind one **Problem melden** button; the Town Hall shows only what the current phase needs, in the same order as for everyone else (the live box with captions first, which before the meeting shows the start time), then reactions, poll and comfort pulse (side by side on tablets); scores, role breakdowns and other facilitator analytics are hidden | Shop-floor workers on phones | Find the one thing to do without scrolling through dashboards |
 | Bilingual charter and polls: **+ Turn into action** and **+ New poll** offer ready-made English + German versions (`ACTION_TEMPLATES` and `POLL_TEMPLATES` in `bp_engine.py`), or Priya types the German line herself; the meeting title, demo actions and demo poll are stored in both languages | German-speaking workers, Priya | Workers vote on actions and polls in German without a live translation service |
-| One colour, one meaning: themes are shown with an icon and a name; red means live / now, amber means not yet or warning, green means agreed or signed (always with an icon and a word); stakeholder groups keep their own colours on avatars and badges | Everyone | A colour never has two meanings on the same screen |
+| Colour means theme: each theme has its own colour (checked for normal and colour-blind vision) shown next to its name; stakeholder groups are named in words and have no colour of their own (where a bar splits by group it uses dark-to-light shades of one slate, line workers darkest); status is a text pill | Everyone | Concerns can be grouped at a glance, and a colour never stands for a theme and a group at the same time |
 | German interface for the worker-facing screens (join page, quick report, posts, Co-Design Agreement) | German-speaking workers | No English needed to take part |
 | Automatic DE ⇄ EN translation of posts, comments, chat and captions | Workers and Priya | Remove the language barrier in both directions |
 | Theme classification (Physical Safety, Machine Pacing & Workload, Job Security, Co-determination & Privacy, Training & Skills, Production Targets & Pressure) | Priya | Make sense of many concerns quickly |
@@ -125,7 +125,7 @@ interfaces and cognitive load during remote presentations.
 Two further changes came from the team's own review of the shop-floor setting: **voice to text** in every place a
 worker can write, and **glove mode** with larger text and tap targets. A later review found the worker screens too
 dense for a phone and the colours ambiguous (the same orange meant a theme, the safety officers and "not yet"), which
-led to the **simple view** and the one-colour-one-meaning rule.
+led to the **simple view** and to colour being used for themes only.
 
 ### Running a simulated town hall
 
