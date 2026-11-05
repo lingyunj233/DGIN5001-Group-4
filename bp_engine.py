@@ -7,10 +7,10 @@ import urllib.parse
 import urllib.request
 
 ROLES = {
-    'line_worker':    {'label': 'Line Worker',     'label_de': 'Bandarbeiter/in',      'weight': 1.5, 'color': '#2F7FB0'},
+    'line_worker':    {'label': 'Line Worker',     'label_de': 'Bandarbeiter/in',      'weight': 1.5, 'color': '#5598E7'},
     'safety_officer': {'label': 'Safety Officer',  'label_de': 'Sicherheits\u00adfachkraft', 'weight': 1.3, 'color': '#E07A00'},
     'union_rep':      {'label': 'Union Rep',       'label_de': 'Betriebsrat',          'weight': 1.2, 'color': '#2F9E6E'},
-    'director':       {'label': 'Plant Director',  'label_de': 'Werksleitung',         'weight': 1.0, 'color': '#8A5A2B'},
+    'director':       {'label': 'Plant Director',  'label_de': 'Werksleitung',         'weight': 1.0, 'color': '#8B4F13'},
     'organizer':      {'label': 'Product Team',    'label_de': 'Produktteam',       'weight': 0.0, 'color': '#0B3C5D'},
 }
 PUBLIC_ROLES = ['line_worker', 'safety_officer', 'union_rep', 'director']

@@ -764,7 +764,9 @@ body.simple .simple-cta { display: flex; gap: 8px; margin-top: 6px; }
 body.simple .composer:not(.open) .composer-modes,
 body.simple .composer:not(.open) .quick-pane,
 body.simple .composer:not(.open) .write-pane { display: none !important; }
-body.simple .composer.open { position: fixed; inset: 0; z-index: 90; background: #fff; overflow-y: auto; padding: 0 16px 28px; display: block; }
+/* The sheet uses the same 640px column as the Square, so tablets and laptops don't stretch the tiles. */
+body.simple .composer.open { position: fixed; inset: 0; z-index: 90; background: var(--bg-deep); overflow-y: auto; padding: 0; display: block; }
+body.simple .composer.open .composer-main { max-width: 640px; min-height: 100%; margin: 0 auto; padding: 0 16px 28px; background: #fff; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
 body.simple .composer.open .composer-avatar,
 body.simple .composer.open .simple-cta { display: none; }
 body.simple .composer.open .sheet-head { display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 2; background: #fff; padding: 14px 0 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
@@ -793,8 +795,7 @@ body.simple.ph-after #surveyCard { order: 1 !important; }
 body.simple.ph-before #beforeCard { display: block; }
 body.simple #impactCard { display: none; }
 body.simple:not(.poll-open) #pollCard { display: none; }
-body.simple:not(.ph-live) #reactCard,
-body.simple:not(.ph-live) #capCard { display: none; }
+body.simple:not(.ph-live) #reactCard { display: none; }
 body.simple.ph-before #charterCard,
 body.simple.ph-after #pulseCard { display: none; }
 body.simple:not(.ag-open):not(.ag-locked) #agreementCard { display: none; }
