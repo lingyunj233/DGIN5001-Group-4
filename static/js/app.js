@@ -106,7 +106,7 @@ var TX2 = {
     liveNow: 'Live now', liveHint: 'React any time below',
     bfTitle: 'Before the Town Hall', bfText: 'Tell us what bothers you on the floor. Priya reads every report before the meeting — your name is never shown.',
     bfTop: 'Most reported so far', reports: 'reports',
-    simpleView: 'Simple view (fewer buttons)',
+    layoutTitle: 'Layout', layout_auto: 'Automatic', layout_simple: 'Simple', layout_full: 'Detailed', layoutHint: 'Automatic: simple on phones, detailed on computers.',
     chatSearch: 'Search chats & rooms…', chatAll: 'All', chatChats: 'Chats', chatRooms: 'Rooms', chatNewRoom: '+ New breakout room',
     chatPick: 'Select a chat or breakout room', chatInputPh: 'Type, or tap the mic and speak…',
     chatBreakouts: 'Breakout rooms', chatOpenRooms: 'Open rooms', chatDirect: 'Direct', chatJoin: 'Join', members: 'members',
@@ -143,7 +143,7 @@ var TX2 = {
     liveNow: 'Jetzt live', liveHint: 'Reagiere jederzeit hier unten',
     bfTitle: 'Vor dem Town Hall', bfText: 'Sag uns, was dich in der Halle stört. Priya liest jede Meldung vor dem Meeting – dein Name wird nie angezeigt.',
     bfTop: 'Bisher am häufigsten gemeldet', reports: 'Meldungen',
-    simpleView: 'Einfache Ansicht (weniger Knöpfe)',
+    layoutTitle: 'Ansicht', layout_auto: 'Automatisch', layout_simple: 'Einfach', layout_full: 'Ausführlich', layoutHint: 'Automatisch: einfach auf dem Handy, ausführlich am Computer.',
     chatSearch: 'Chats & Räume suchen …', chatAll: 'Alle', chatChats: 'Chats', chatRooms: 'Räume', chatNewRoom: '+ Neuer Breakout-Raum',
     chatPick: 'Chat oder Breakout-Raum wählen', chatInputPh: 'Tippen oder aufs Mikro tippen und sprechen …',
     chatBreakouts: 'Breakout-Räume', chatOpenRooms: 'Offene Räume', chatDirect: 'Direkt', chatJoin: 'Beitreten', members: 'Mitglieder',
@@ -153,14 +153,23 @@ var TX2 = {
 Object.keys(TX2).forEach(function (l) { Object.keys(TX2[l]).forEach(function (k) { TX[l][k] = TX2[l][k]; }); });
 
 // Simple view: line workers on the floor get one job per screen. Others can switch it on in Settings.
-var SIMPLE = (function () {
+// The layout follows the screen, not the role. Narrow screens (phones, tablets held upright) get the simple
+// one-column view; wide screens get the full view. Every participant sees the same content either way, and
+// anyone can fix the layout in Settings. The Product Team always gets the facilitator view.
+var NARROW = window.matchMedia ? window.matchMedia('(max-width: 900px)') : null;
+function layoutPref() {
+  var v = null; try { v = localStorage.getItem('bp_layout'); } catch (e) {}
+  return v === 'simple' || v === 'full' ? v : 'auto';
+}
+function wantSimple() {
   if (ME.isOrganizer) return false;
-  var v = null; try { v = localStorage.getItem('bp_simple'); } catch (e) {}
-  if (v === '1') return true;
-  if (v === '0') return false;
-  return ME.role === 'line_worker';
-})();
+  var p = layoutPref();
+  if (p !== 'auto') return p === 'simple';
+  return NARROW ? NARROW.matches : window.innerWidth <= 900;
+}
+var SIMPLE = wantSimple();
 if (SIMPLE) { document.body.classList.add('simple'); state.sort = 'top'; }
+if (ME.isOrganizer) document.body.classList.add('organizer');
 
 function tx(k) { var d = TX[state.lang] || TX.en; return d[k] != null ? d[k] : (TX.en[k] != null ? TX.en[k] : k); }
 function themeLabel(key) { var t = THEMES[key] || THEMES.other; return state.lang === 'de' ? (t.label_de || t.label) : t.label; }
@@ -1448,15 +1457,27 @@ function loadSettings() {
         }
         return '<div class="settings-row"><span class="settings-label">' + esc(it.label) + '</span>' + ctl + '</div>';
       }).join('') + '</div>';
-    }).join('') + (ME.isOrganizer ? '' : '<div class="settings-section"><div class="settings-row"><span class="settings-label">' + esc(tx('simpleView')) + '</span>' +
-      '<label class="toggle-switch"><input type="checkbox"' + (SIMPLE ? ' checked' : '') + ' onchange="setSimple(this.checked)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>') +
+    }).join('') + (ME.isOrganizer ? '' : '<div class="settings-section"><div class="settings-section-title">' + esc(tx('layoutTitle')) + '</div>' +
+      '<div class="layout-switch">' + ['auto', 'simple', 'full'].map(function (v) {
+        return '<button class="' + (layoutPref() === v ? 'active' : '') + '" onclick="setLayout(\'' + v + '\')">' + esc(tx('layout_' + v)) + '</button>';
+      }).join('') + '</div><div class="layout-hint">' + esc(tx('layoutHint')) + '</div></div>') +
       '<div class="settings-section"><a class="btn-ghost signout-btn" href="/logout">' + esc(tx('signOut')) + ' · ' + esc(personName({ name: ME.name, role: ME.role })) + '</a></div>';
   });
 }
 
-function setSimple(on) {
-  try { localStorage.setItem('bp_simple', on ? '1' : '0'); } catch (e) {}
-  location.reload();
+// Switch between the simple and the full layout without reloading (on rotate, resize or a Settings change).
+function applyLayout() {
+  var on = wantSimple(); if (on === SIMPLE) return;
+  SIMPLE = on;
+  document.body.classList.toggle('simple', on);
+  if (!on && $('composer') && $('composer').classList.contains('open')) closeReport();
+  if (state.feed) renderFeed();
+  renderInsightsPanel(); renderThemeFilter(); renderComposerLabels(); renderQuick(); renderShowAll();
+  if (state.th) renderTownHall();
+}
+function setLayout(v) {
+  try { localStorage.setItem('bp_layout', v); } catch (e) {}
+  applyLayout(); loadSettings();
 }
 
 (function init() {
@@ -1477,6 +1498,7 @@ function setSimple(on) {
   renderQuick();
   setComposerMode(cm === 'write' || cm === 'quick' ? cm : composerMode);
   loadFeed(); loadInsights(); loadTownHall(); loadContacts(); loadNotifications(); loadSettings();
+  if (NARROW) { if (NARROW.addEventListener) NARROW.addEventListener('change', applyLayout); else if (NARROW.addListener) NARROW.addListener(applyLayout); }
   var saved = null; try { saved = localStorage.getItem('bp_mode'); } catch (e) {}
   switchMode(saved && $(saved + 'Panel') ? saved : 'square');
   setInterval(function () { if (state.th && state.th.phase === 'live') { renderClock(); } }, 1000);

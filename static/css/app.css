@@ -425,6 +425,11 @@ textarea.field { resize: vertical; min-height: 70px; }
 .settings-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--accent); margin-bottom: 10px; }
 .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; gap: 10px; }
 .settings-label { font-size: 13px; color: var(--text-secondary); }
+.layout-switch { display: flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 6px; }
+.layout-switch button { flex: 1; border: none; border-left: 1px solid var(--border); background: transparent; padding: 9px 6px; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--text-secondary); cursor: pointer; }
+.layout-switch button:first-child { border-left: none; }
+.layout-switch button.active { background: var(--brand-tint); color: var(--accent); }
+.layout-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
 .toggle-switch { position: relative; width: 40px; height: 22px; cursor: pointer; flex-shrink: 0; }
 .toggle-switch input { display: none; }
 .toggle-track { position: absolute; inset: 0; background: #DCE7EE; border-radius: 11px; transition: all 0.2s; }
@@ -626,7 +631,7 @@ textarea.field { resize: vertical; min-height: 70px; }
 .more-item:hover { color: var(--accent); }
 .more-item b { color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
 .side-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.side-stack.row3 { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.side-stack.row3 { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
 
 .agreement-card.open { border: 2px solid #BFE3CF; }
 .lock-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 800; color: #1F6B49; background: var(--green-dim); padding: 4px 10px; border-radius: 10px; }
@@ -797,20 +802,13 @@ body.simple.ph-after #surveyCard { order: 1 !important; }
   body.simple #townhallPanel .th-wrap > *, body.simple #townhallPanel .th-grid > *, body.simple #townhallPanel .side-stack > * { flex: 1 1 100%; }
   body.simple #townhallPanel #pollCard, body.simple #townhallPanel #pulseCard { flex: 1 1 calc(50% - 8px); }
 }
-body.simple.ph-before #beforeCard { display: block; }
 body.simple #impactCard { display: none; }
 body.simple:not(.poll-open) #pollCard { display: none; }
-body.simple:not(.ph-live) #reactCard { display: none; }
-body.simple.ph-before #charterCard,
-body.simple.ph-after #pulseCard { display: none; }
 body.simple:not(.ag-open):not(.ag-locked) #agreementCard { display: none; }
-body.simple:not(.ph-after) #surveyCard { display: none; }
 body.simple .th-hero { padding: 14px 16px; gap: 10px; }
 body.simple .th-hero-title { font-size: 18px; }
 body.simple .th-hero .clk-big { font-size: 22px; }
 body.simple #nowBanner + * { margin-top: 0; }
-body.simple #reactCard { border: 2px solid var(--red); }
-body.simple #reactCard .th-card-head { margin-bottom: 8px; }
 body.simple #capCard .captions { min-height: 70px; max-height: 150px; }
 body.simple #pollCard .poll-foot { margin-top: 2px; }
 body.simple #pulseCard.folded .pulse-row, body.simple #pulseCard.folded .th-card-head .sub { display: none; }
@@ -868,3 +866,29 @@ body.simple.show-impact #impactCard { display: block; order: 11 !important; }
 .now-banner b .tdot { width: 11px; height: 11px; margin-right: 8px; vertical-align: 1px; }
 .bf-list li .tdot { grid-row: span 2; justify-self: center; width: 12px; height: 12px; margin: 0; }
 .act-top .tdot { margin-right: 2px; }
+
+/* ------------------------------------------------------------------
+   Phases, for every role. Each phase shows only what belongs to it.
+   Before: live box (with the start time), "Before the Town Hall", poll, concerns.
+   Live:   live box, reactions (right under it), poll, comfort pulse, charter, agreement.
+   After:  survey (first, above the live box), charter, the signed agreement.
+   The Product Team also sees the charter before the meeting, to prepare actions.
+   ------------------------------------------------------------------ */
+body.ph-before #beforeCard { display: block; }
+body:not(.simple) #beforeCard .bf-sub, body:not(.simple) #beforeCard .bf-list, body:not(.simple) #beforeCard .bf-more { display: none; }
+body:not(.simple) #beforeCard .bf-text { margin-bottom: 8px; }
+body:not(.ph-live) #reactCard, body:not(.ph-live) #pulseCard { display: none; }
+body:not(.ph-after) #surveyCard { display: none; }
+body.ph-before #agreementCard { display: none; }
+body.ph-after:not(.ag-open):not(.ag-locked) #agreementCard { display: none; }
+body.ph-before:not(.organizer) #charterCard { display: none; }
+#reactCard { border: 2px solid var(--red); }
+#reactCard .th-card-head { margin-bottom: 8px; }
+
+/* The charter table needs room. When its card is narrow (a laptop with the Live Room open, a tablet), everyone except
+   the Product Team, who needs the status menu in the table, gets the same one-card-per-action layout as on a phone. */
+#charterCard { container-type: inline-size; }
+@container (max-width: 960px) {
+  body:not(.organizer) #charterCard .charter-table { display: none; }
+  body:not(.organizer) #charterCard .act-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; }
+}

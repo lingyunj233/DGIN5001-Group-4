@@ -251,11 +251,6 @@
 
           <div class="now-banner hidden" id="nowBanner"></div>
 
-          {% if not user.is_organizer %}
-          <div class="th-card full before-card" id="beforeCard"></div>
-          <button class="show-all" id="showAllBtn" onclick="toggleAllThemes()"></button>
-          {% endif %}
-
           {% if user.is_organizer %}
           <div class="th-card full focus-card">
             <div class="th-card-head">
@@ -269,6 +264,9 @@
           </div>
           {% endif %}
 
+          <!-- After only: the survey comes first, because nothing is live any more. -->
+          <div class="th-card full" id="surveyCard"></div>
+
           <div class="th-card full" id="capCard">
             <div class="th-card-head">
               <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/></svg>
@@ -280,6 +278,18 @@
               <select class="mini-select" id="capLang"><option value="de-DE">Deutsch</option><option value="en-US">English</option></select>
               <input id="capInput" placeholder="…or type a question / caption and press Enter" data-i18n-ph="capPh" onkeydown="if(event.key==='Enter'){sendCaption(this.value,true);this.value='';}">
             </div>
+          </div>
+
+          {% if not user.is_organizer %}
+          <!-- Before only. -->
+          <div class="th-card full before-card" id="beforeCard"></div>
+          <button class="show-all" id="showAllBtn" onclick="toggleAllThemes()"></button>
+          {% endif %}
+
+          <!-- Live only: reactions sit right under the live box. -->
+          <div class="th-card full" id="reactCard">
+            <div class="th-card-head"><h3 data-i18n="reactTitle">React live</h3><span class="sub" data-i18n="reactSub">anonymous, instant</span></div>
+            <div class="reactions" id="reactions"></div>
           </div>
 
           <div class="th-grid">
@@ -327,10 +337,6 @@
                   <div class="dist" id="pulseDist"></div>
                 </div>
               </div>
-              <div class="th-card" id="reactCard">
-                <div class="th-card-head"><h3 data-i18n="reactTitle">React live</h3><span class="sub" data-i18n="reactSub">anonymous, instant</span></div>
-                <div class="reactions" id="reactions"></div>
-              </div>
             </div>
 
             <div class="th-card full" id="charterCard">
@@ -364,7 +370,6 @@
 
             <div class="th-card full agreement-card" id="agreementCard"></div>
 
-            <div class="th-card full" id="surveyCard"></div>
           </div>
         </div>
       </div>
