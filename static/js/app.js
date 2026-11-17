@@ -90,6 +90,13 @@ var TX2 = {
     pulseMine: 'Your mood', pulseChange: 'change', pulseRoom: 'In the room', pulseAnswers: 'answers', pulseTrend: 'Over time',
     pulseFirst: 'Tap a face to see how the room feels.', ph_before: 'before', ph_live: 'during', ph_after: 'after',
     moodTitle: 'Room mood', mood1: 'Mostly uneasy', mood2: 'Mixed', mood3: 'Mostly comfortable',
+    lrTitle: 'Live Room', lrSub: 'Who is here, how it feels', lrOnline: 'online now', lrComfort: 'comfort /5', lrVotes: 'poll votes',
+    lrInRoom: 'In the room', lrNobody: 'Nobody else online yet.', lrReactions: 'Reactions so far',
+    piTitle: 'Pulse Insights', piSub: 'What the plant is saying', piConcerns: 'concerns', piJoined: 'joined', piGerman: 'in German',
+    piMost: 'Most reported (quick reports)', piThemes: 'Themes by weighted impact',
+    piNote: 'Priority = group weight + weighted "me too" + replies. Line workers count 1.5× so shop-floor voices rise first.', piEngine: 'Translation engine',
+    ctTitle: 'Translation & Context', ctSub: 'Tap any message', ctHint: 'to see the original, the translation and notes on German workplace terms (Betriebsrat, Takt, …).',
+    ctTheme: 'Theme', ctNote: 'Cultural note', ctFrom: 'From', aiFooter: 'Anonymous by design · role-weighted priorities · DE ⇄ EN',
     face1: 'Very uneasy', face2: 'Uneasy', face3: 'Neutral', face4: 'OK', face5: 'Confident',
     reactTitle: 'React live', reactSub: 'anonymous, instant',
     re_agree: 'Agree', re_unsure: 'Unsure', re_concern: 'Concern', re_applause: 'Thanks',
@@ -129,6 +136,13 @@ var TX2 = {
     pulseMine: 'Deine Stimmung', pulseChange: 'ändern', pulseRoom: 'Im Raum', pulseAnswers: 'Antworten', pulseTrend: 'Verlauf',
     pulseFirst: 'Tippe ein Gesicht an, dann siehst du die Stimmung im Raum.', ph_before: 'vorher', ph_live: 'im Meeting', ph_after: 'danach',
     moodTitle: 'Stimmung im Raum', mood1: 'Eher unwohl', mood2: 'Gemischt', mood3: 'Eher wohl',
+    lrTitle: 'Live-Raum', lrSub: 'Wer ist da, wie ist die Stimmung', lrOnline: 'gerade online', lrComfort: 'Stimmung /5', lrVotes: 'Stimmen',
+    lrInRoom: 'Im Raum', lrNobody: 'Noch niemand sonst online.', lrReactions: 'Reaktionen bisher',
+    piTitle: 'Stimmungsbild', piSub: 'Was das Werk sagt', piConcerns: 'Anliegen', piJoined: 'dabei', piGerman: 'auf Deutsch',
+    piMost: 'Am häufigsten gemeldet (Schnellmeldungen)', piThemes: 'Themen nach gewichteter Wirkung',
+    piNote: 'Priorität = Gewicht der Gruppe + gewichtete „Ich auch“ + Antworten. Bandarbeiter/innen zählen 1,5×, damit Stimmen aus der Halle zuerst oben stehen.', piEngine: 'Übersetzung',
+    ctTitle: 'Übersetzung & Kontext', ctSub: 'Tippe auf eine Nachricht', ctHint: 'und du siehst Original, Übersetzung und Hinweise zu deutschen Begriffen aus dem Betrieb (Betriebsrat, Takt, …).',
+    ctTheme: 'Thema', ctNote: 'Kultureller Hinweis', ctFrom: 'Von', aiFooter: 'Anonym von Anfang an · nach Gruppe gewichtet · DE ⇄ EN',
     face1: 'Sehr unwohl', face2: 'Unwohl', face3: 'Neutral', face4: 'Okay', face5: 'Zuversichtlich',
     reactTitle: 'Live reagieren', reactSub: 'anonym, sofort',
     re_agree: 'Zustimmung', re_unsure: 'Unsicher', re_concern: 'Bedenken', re_applause: 'Danke',
@@ -236,7 +250,7 @@ function toast(msg) {
   clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 2600);
 }
 function debounce(fn, ms) { var t; return function () { var a = arguments; clearTimeout(t); t = setTimeout(function () { fn.apply(null, a); }, ms); }; }
-function langName(l) { return l === 'de' ? 'German' : 'English'; }
+function langName(l) { return state.lang === 'de' ? (l === 'de' ? 'Deutsch' : 'Englisch') : (l === 'de' ? 'German' : 'English'); }
 function trFrom(l) {
   if (state.lang === 'de') return 'Übersetzt aus dem ' + (l === 'de' ? 'Deutschen' : 'Englischen');
   return 'Translated from ' + langName(l);
@@ -579,7 +593,7 @@ function setComposerMode(m) {
   if ($('sheetTitle')) $('sheetTitle').textContent = tx(m === 'quick' ? 'ctaQuick' : 'sheetWrite');
   try { localStorage.setItem('bp_cmode', m); } catch (e) {}
 }
-// Simple view: the report form stays behind one big button and opens as a full-screen sheet.
+// The report form stays behind one big button and opens as a sheet (phone) or a dialog (computer).
 function openReport(m) {
   if (!$('composer')) return;
   if (state.mode !== 'square') switchMode('square');
@@ -593,6 +607,9 @@ function closeReport() {
   $('composer').classList.remove('open');
   document.body.classList.remove('sheet-open');
 }
+// Close the report dialog by clicking the dimmed area around it, or with Esc.
+document.addEventListener('click', function (e) { if (e.target === $('composer') && $('composer').classList.contains('open')) closeReport(); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $('composer') && $('composer').classList.contains('open')) closeReport(); });
 function renderQuick() {
   var el = $('quickBody'); if (!el) return;
   var tiles = BOOT.quickOrder.map(function (k) {
@@ -738,33 +755,32 @@ function mixBar(mix) {
 function renderInsightsPanel() {
   var el = $('aiContent');
   if (state.mode === 'square') {
-    $('insTitle').textContent = 'Pulse Insights'; $('insSub').textContent = 'What the plant is saying';
+    $('insTitle').textContent = tx('piTitle'); $('insSub').textContent = tx('piSub');
     var d = state.insights; if (!d) { el.innerHTML = ''; return; }
     var max = Math.max.apply(null, d.themes.map(function (t) { return t.score; }).concat([1]));
     el.innerHTML =
-      '<div class="ins-stats"><div class="ins-stat"><b>' + d.total_posts + '</b><span>concerns</span></div>' +
-      '<div class="ins-stat"><b>' + d.participants + '</b><span>joined</span></div>' +
-      '<div class="ins-stat"><b>' + d.de_share + '%</b><span>in German</span></div></div>' +
-      (d.tag_totals && d.tag_totals.length ? '<div class="ins-section">Most reported (quick reports)</div><div class="qchips">' +
+      '<div class="ins-stats"><div class="ins-stat"><b>' + d.total_posts + '</b><span>' + esc(tx('piConcerns')) + '</span></div>' +
+      '<div class="ins-stat"><b>' + d.participants + '</b><span>' + esc(tx('piJoined')) + '</span></div>' +
+      '<div class="ins-stat"><b>' + d.de_share + '%</b><span>' + esc(tx('piGerman')) + '</span></div></div>' +
+      (d.tag_totals && d.tag_totals.length ? '<div class="ins-section">' + esc(tx('piMost')) + '</div><div class="qchips">' +
         d.tag_totals.slice(0, 6).map(function (kv) { var t = QT[kv[0]]; return t ? '<span class="qchip sm" style="--tc:' + themeColor(t.theme) + '"><span class="qchip-i">' + t.icon + '</span>' + esc(tagLabel(kv[0])) + ' <b>×' + kv[1] + '</b></span>' : ''; }).join('') + '</div>' : '') +
-      '<div class="ins-section">Themes by weighted impact</div>' +
+      '<div class="ins-section">' + esc(tx('piThemes')) + '</div>' +
       d.themes.map(function (t) {
         return '<div class="ins-theme" style="border-left-color:' + themeColor(t.key) + '" onclick="setThemeFilter(\'' + t.key + '\')">' +
           '<div class="ins-theme-top"><span class="ins-theme-name">' + esc(themeLabel(t.key)) + '</span><span class="ins-theme-score">' + t.score + '</span></div>' +
           '<div class="mixbar" style="height:4px;margin-top:6px"><span style="width:' + (100 * t.score / max) + '%;background:' + themeColor(t.key) + '"></span></div>' +
-          '<div class="ins-theme-sum">' + esc(t.summary) + ' · ' + t.support + ' "me too"</div>' +
+          '<div class="ins-theme-sum">' + esc(concernSummary(t)) + '</div>' +
           mixBar(t.role_mix) + '</div>';
       }).join('') +
       '<div class="legend">' + groupLegend() + '</div>' +
-      '<div class="engine-note">Priority = author weight + weighted "me too" + replies. Line workers count 1.5× so shop-floor voices rise first. ' +
-      'Translation engine: ' + esc(d.tr_mode) + '.</div>';
+      '<div class="engine-note">' + esc(tx('piNote')) + ' ' + esc(tx('piEngine')) + ': ' + esc(d.tr_mode) + '.</div>';
   } else if (state.mode === 'voice') {
-    $('insTitle').textContent = 'Translation & Context'; $('insSub').textContent = 'Tap any message';
+    $('insTitle').textContent = tx('ctTitle'); $('insSub').textContent = tx('ctSub');
     if (state.selectedMsg) showMessageInsight(state.selectedMsg);
     else el.innerHTML = '<div class="ai-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg>' +
-      '<div><b>Tap a message</b> to see the original, the translation and notes on German workplace terms (Betriebsrat, Takt, …).</div></div>';
+      '<div><b>' + esc(tx('ctSub')) + '</b> ' + esc(tx('ctHint')) + '</div></div>';
   } else {
-    $('insTitle').textContent = 'Live Room'; $('insSub').textContent = 'Who is here, how it feels';
+    $('insTitle').textContent = tx('lrTitle'); $('insSub').textContent = tx('lrSub');
     renderLivePanel();
   }
 }
@@ -776,30 +792,30 @@ function showMessageInsight(m) {
     var other = m.lang === 'de' ? (m.content_en || d.translation) : (m.content_de || d.translation);
     el.innerHTML =
       '<div class="ai-suggestion"><div class="ai-suggestion-label">Original · ' + langName(m.lang) + '</div><div class="ai-suggestion-text">' + esc(m.content) + '</div></div>' +
-      '<div class="ai-suggestion"><div class="ai-suggestion-label">' + (m.lang === 'de' ? 'English' : 'German') + '</div><div class="ai-suggestion-text">' + esc(other) + '</div></div>' +
-      '<div class="ai-suggestion" style="border-left-color:#94A3B8"><div class="ai-suggestion-label" style="color:var(--text-secondary)">Theme</div><div class="ai-suggestion-text">' + esc(d.theme) + '</div></div>' +
-      d.notes.map(function (n) { return '<div class="ai-suggestion note"><div class="ai-suggestion-label">Cultural note</div><div class="ai-suggestion-text">' + esc(n) + '</div></div>'; }).join('') +
-      '<div class="engine-note">From ' + esc(m.display_name) + ' · ' + esc(m.time) + '</div>';
+      '<div class="ai-suggestion"><div class="ai-suggestion-label">' + langName(m.lang === 'de' ? 'en' : 'de') + '</div><div class="ai-suggestion-text">' + esc(other) + '</div></div>' +
+      '<div class="ai-suggestion" style="border-left-color:#94A3B8"><div class="ai-suggestion-label" style="color:var(--text-secondary)">' + esc(tx('ctTheme')) + '</div><div class="ai-suggestion-text">' + esc(d.theme) + '</div></div>' +
+      d.notes.map(function (n) { return '<div class="ai-suggestion note"><div class="ai-suggestion-label">' + esc(tx('ctNote')) + '</div><div class="ai-suggestion-text">' + esc(n) + '</div></div>'; }).join('') +
+      '<div class="engine-note">' + esc(tx('ctFrom')) + ' ' + esc(m.display_name) + ' · ' + esc(m.time) + '</div>';
   });
 }
 function renderLivePanel() {
   var th = state.th, el = $('aiContent'); if (!th) return;
   var chips = Object.keys(th.online_roles).map(function (k) {
-    return '<span class="role-chip"><i style="background:' + ROLES[k].color + '"></i>' + esc(ROLES[k].label) + ' · ' + th.online_roles[k] + '</span>';
-  }).join('') || '<span class="engine-note">Nobody else online yet.</span>';
+    return '<span class="role-chip"><i style="background:' + ROLES[k].color + '"></i>' + esc(groupLabel(k)) + ' · ' + th.online_roles[k] + '</span>';
+  }).join('') || '<span class="engine-note">' + esc(tx('lrNobody')) + '</span>';
   // Advice for the facilitator ("slow down, listen", "address next") is for the Product Team only; everyone else
   // sees a neutral room mood, and only after answering the comfort question themselves.
   var org = ME.isOrganizer, seeRoom = org || !!th.pulse.mine, lvl = th.pulse.avg >= 4 ? 3 : th.pulse.avg >= 3 ? 2 : 1;
   var orgLow = { before: 'Uneasy going in — open by listening', live: 'Uneasy — slow down, listen', after: 'Still uneasy — follow up on the charter' };
   var mood = org ? (lvl === 3 ? 'Mostly comfortable' : lvl === 2 ? 'Mixed' : orgLow[th.phase] || orgLow.live) : tx('mood' + lvl);
   el.innerHTML =
-    '<div class="ins-stats"><div class="ins-stat"><b>' + th.online + '</b><span>online now</span></div>' +
-    '<div class="ins-stat"><b>' + (seeRoom && th.pulse.n ? fmtAvg(th.pulse.avg) : '–') + '</b><span>comfort /5</span></div>' +
-    '<div class="ins-stat"><b>' + (th.poll ? th.poll.total : 0) + '</b><span>poll votes</span></div></div>' +
-    '<div class="ins-section">In the room</div><div class="role-chips">' + chips + '</div>' +
+    '<div class="ins-stats"><div class="ins-stat"><b>' + th.online + '</b><span>' + esc(tx('lrOnline')) + '</span></div>' +
+    '<div class="ins-stat"><b>' + (seeRoom && th.pulse.n ? fmtAvg(th.pulse.avg) : '–') + '</b><span>' + esc(tx('lrComfort')) + '</span></div>' +
+    '<div class="ins-stat"><b>' + (th.poll ? th.poll.total : 0) + '</b><span>' + esc(tx('lrVotes')) + '</span></div></div>' +
+    '<div class="ins-section">' + esc(tx('lrInRoom')) + '</div><div class="role-chips">' + chips + '</div>' +
     (seeRoom && th.pulse.n ? '<div class="ai-suggestion' + (org && lvl === 1 ? ' note' : '') + '"><div class="ai-suggestion-label">' + esc(org ? 'Room mood' : tx('moodTitle')) + '</div><div class="ai-suggestion-text">' + esc(mood) + ' (' + th.pulse.n + ' ' + esc(org ? 'responses' : tx('pulseAnswers')) + ')</div></div>' : '') +
-    '<div class="ins-section">Reactions so far</div><div class="role-chips">' + REACTIONS.map(function (r) {
-      return '<span class="role-chip">' + r.e + ' ' + esc(r.l) + ' · ' + (th.reactions[r.k] || 0) + '</span>';
+    '<div class="ins-section">' + esc(tx('lrReactions')) + '</div><div class="role-chips">' + REACTIONS.map(function (r) {
+      return '<span class="role-chip">' + r.e + ' ' + esc(tx('re_' + r.k)) + ' · ' + (th.reactions[r.k] || 0) + '</span>';
     }).join('') + '</div>' +
     (org && th.top_concerns[0] ? '<div class="ai-suggestion"><div class="ai-suggestion-label">Address next</div><div class="ai-suggestion-text"><b>' + esc(th.top_concerns[0].label) + '</b> — ' + esc(th.top_concerns[0].summary) + '</div></div>' : '');
 }
@@ -1494,7 +1510,6 @@ function applyLayout() {
   var on = wantSimple(); if (on === SIMPLE) return;
   SIMPLE = on;
   document.body.classList.toggle('simple', on);
-  if (!on && $('composer') && $('composer').classList.contains('open')) closeReport();
   if (state.feed) renderFeed();
   renderInsightsPanel(); renderThemeFilter(); renderComposerLabels(); renderQuick(); renderShowAll();
   if (state.th) renderTownHall();
