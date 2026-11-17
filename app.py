@@ -114,7 +114,8 @@ def init_db():
             PRIMARY KEY (poll_id, user_id)
         );
         CREATE TABLE IF NOT EXISTS pulses (
-            user_id INTEGER PRIMARY KEY, value INTEGER, updated_at TIMESTAMP
+            user_id INTEGER, phase TEXT NOT NULL DEFAULT 'live', value INTEGER, updated_at TIMESTAMP,
+            PRIMARY KEY (user_id, phase)
         );
         CREATE TABLE IF NOT EXISTS actions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -159,6 +160,16 @@ def migrate_db():
         if name not in poll_cols:
             conn.execute('ALTER TABLE polls ADD COLUMN %s TEXT' % name)
     conn.commit()
+    # Comfort pulse: one answer per person per phase (before / live / after), so the change can be shown.
+    pulse_cols = {r['name'] for r in conn.execute('PRAGMA table_info(pulses)').fetchall()}
+    if 'phase' not in pulse_cols:
+        conn.executescript('''
+            CREATE TABLE pulses_by_phase (user_id INTEGER, phase TEXT NOT NULL DEFAULT 'live', value INTEGER,
+                                          updated_at TIMESTAMP, PRIMARY KEY (user_id, phase));
+            INSERT INTO pulses_by_phase (user_id, phase, value, updated_at) SELECT user_id, 'live', value, updated_at FROM pulses;
+            DROP TABLE pulses;
+            ALTER TABLE pulses_by_phase RENAME TO pulses;
+        ''')
     conn.close()
 
 def minutes_since(ts):
@@ -391,8 +402,11 @@ def actions_by_theme(conn):
     locked = charter_locked()
     out = {}
     for a in conn.execute('SELECT theme, title, title_de, status FROM actions ORDER BY id').fetchall():
-        out.setdefault(a['theme'], {'title': a['title'], 'title_de': a['title_de'] or a['title'],
-                                    'status': 'signed' if locked else a['status']})
+        if a['theme'] in out:
+            out[a['theme']]['more'] += 1
+            continue
+        out[a['theme']] = {'title': a['title'], 'title_de': a['title_de'] or a['title'],
+                           'status': 'signed' if locked else a['status'], 'more': 0}
     return out
 
 def serialize_post(conn, r, uid, theme_actions=None):
@@ -770,13 +784,17 @@ def townhall_state(uid, is_org):
                     'question_de': poll['question_de'] or poll['question'], 'options_de': opts_de, 'counts': counts,
                     'weighted': [round(w, 1) for w in weighted], 'total': sum(counts),
                     'is_open': bool(poll['is_open']), 'my_vote': mine['option_idx'] if mine else None}
-    pulses = conn.execute('SELECT value FROM pulses').fetchall()
-    dist = [0] * 5
-    for p in pulses:
-        if 1 <= p['value'] <= 5:
-            dist[p['value'] - 1] += 1
-    my_pulse = conn.execute('SELECT value FROM pulses WHERE user_id = ?', (uid,)).fetchone()
-    avg = round(sum((i + 1) * c for i, c in enumerate(dist)) / max(1, sum(dist)), 1)
+    # Comfort pulse per phase: the current phase drives the card and the room mood; the trend shows the change.
+    pulse_phases = {}
+    for ph in ('before', 'live', 'after'):
+        d = [0] * 5
+        for p in conn.execute('SELECT value FROM pulses WHERE phase = ?', (ph,)).fetchall():
+            if 1 <= p['value'] <= 5:
+                d[p['value'] - 1] += 1
+        pulse_phases[ph] = {'dist': d, 'n': sum(d),
+                            'avg': round(sum((i + 1) * c for i, c in enumerate(d)) / max(1, sum(d)), 1)}
+    dist, avg = pulse_phases[phase]['dist'], pulse_phases[phase]['avg']
+    my_pulse = conn.execute('SELECT value FROM pulses WHERE user_id = ? AND phase = ?', (uid, phase)).fetchone()
     actions = []
     for a in conn.execute('SELECT * FROM actions ORDER BY id').fetchall():
         votes = conn.execute('SELECT vote, COUNT(*) c FROM action_votes WHERE action_id = ? GROUP BY vote',
@@ -819,7 +837,9 @@ def townhall_state(uid, is_org):
         'phase': phase, 'title': get_state('title', ''), 'when': get_state('when', ''),
         'title_de': get_state('title_de') or get_state('title', ''), 'when_de': get_state('when_de') or get_state('when', ''),
         'poll': poll_out,
-        'pulse': {'avg': avg, 'dist': dist, 'n': sum(dist), 'mine': my_pulse['value'] if my_pulse else None},
+        'pulse': {'phase': phase, 'avg': avg, 'dist': dist, 'n': sum(dist), 'mine': my_pulse['value'] if my_pulse else None,
+                  'trend': [{'phase': ph, 'avg': pulse_phases[ph]['avg'], 'n': pulse_phases[ph]['n']}
+                            for ph in ('before', 'live', 'after')]},
         'reactions': reaction_counts, 'actions': actions, 'survey': survey_out,
         'online': len(online_users), 'online_roles': online_roles,
         'top_concerns': public_themes(insights['themes']),
@@ -1061,9 +1081,10 @@ def api_poll_vote():
 def api_pulse():
     v = int((request.get_json() or {}).get('value', 3))
     v = max(1, min(5, v))
+    phase = get_state('phase', 'before')
     conn = get_db()
-    conn.execute('INSERT OR REPLACE INTO pulses (user_id, value, updated_at) VALUES (?,?,?)',
-                 (current_user.id, v, now_str()))
+    conn.execute('INSERT OR REPLACE INTO pulses (user_id, phase, value, updated_at) VALUES (?,?,?,?)',
+                 (current_user.id, phase, v, now_str()))
     conn.commit()
     conn.close()
     broadcast_th()
@@ -1428,4 +1449,4 @@ if __name__ == '__main__':
     print('  Translation      : %s' % bp.translation_mode())
     print('  Request logging  : off (Zero-Log)')
     print('=' * 56)
-    socketio.run(app, host='0.0.0.0', port=PORT, debug=True, allow_unsafe_werkzeug=True, log_output=False)
+    socketio.run(app, host='0.0.0.0', port=PORT, debug=os.environ.get('BP_DEBUG') == '1', allow_unsafe_werkzeug=True, log_output=False)

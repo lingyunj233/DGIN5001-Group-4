@@ -99,11 +99,11 @@ SEED_SUPPORT = {
 
 BROADCASTS = [
     ('priya', 60 * 72, 'en',
-     'Town Hall on the AMR rollout — Thursday 23 Oct, 16:00 CET (11:00 in Halifax). I will join from Canada with the '
+     'Town Hall on the AMR rollout — Thursday 23 Oct, 16:00 CEST (11:00 in Halifax). I will join from Canada with the '
      'implementation team. Until then, please share anything on your mind here: text, photos or short videos, in '
      'German or English. You are anonymous — we only ever see your group, never your name.',
      None,
-     'Town Hall zum AMR-Rollout — Donnerstag, 23. Okt., 16:00 Uhr MEZ (11:00 Uhr in Halifax). Ich schalte mich mit '
+     'Town Hall zum AMR-Rollout — Donnerstag, 23. Okt., 16:00 Uhr MESZ (11:00 Uhr in Halifax). Ich schalte mich mit '
      'dem Implementierungsteam aus Kanada zu. Bis dahin teilt bitte hier alles, was euch beschäftigt: Text, Fotos oder '
      'kurze Videos, auf Deutsch oder Englisch. Ihr seid anonym — wir sehen nur eure Gruppe, nie euren Namen.'),
 ]
@@ -191,7 +191,16 @@ def ensure_agreement_params(conn):
 # The opening poll and the two actions already on the charter, in English and German.
 POLL = POLL_TEMPLATES[0]
 ACTIONS = [('safety', ACTION_TEMPLATES['safety'][0], 'proposed'), ('jobs', ACTION_TEMPLATES['jobs'][0], 'proposed')]
-TOWN_HALL_DE = {'title_de': 'AMR-Einführung · Werk Stuttgart', 'when_de': 'Do., 23. Okt. · 16:00 MEZ / 11:00 Halifax'}
+# Comfort pulse demo answers, per phase: a baseline from the days before the meeting, and the first answers in it.
+PULSES = {
+    'before': {'anon_s1': 1, 'anon_s2': 2, 'anon_s3': 2, 'anon_s4': 1, 'anon_s5': 2, 'anon_s6': 3,
+               'anon_s7': 2, 'anon_s8': 2, 'union': 2, 'safety': 3, 'director2': 4},
+    'live': {'anon_s1': 2, 'anon_s2': 2, 'anon_s3': 3, 'anon_s4': 1, 'anon_s5': 2, 'anon_s6': 3,
+             'anon_s7': 2, 'anon_s8': 3, 'union': 2, 'safety': 3, 'director2': 4},
+}
+PULSE_USERNAMES = {'director2': 'anon_director2'}
+
+TOWN_HALL_DE = {'title_de': 'AMR-Einführung · Werk Stuttgart', 'when_de': 'Do., 23. Okt. · 16:00 MESZ / 11:00 Halifax'}
 
 def seed_demo(get_db, create_user, translate_fields, now_str):
     conn = get_db()
@@ -210,6 +219,18 @@ def seed_demo(get_db, create_user, translate_fields, now_str):
                      (POLL['de'], json.dumps(POLL['options_de']), POLL['en']))
         for k, v in TOWN_HALL_DE.items():
             conn.execute('INSERT OR IGNORE INTO th_state (key, value) VALUES (?, ?)', (k, v))
+        # Older databases: Stuttgart is still on summer time on 23 Oct (CEST / MESZ, not CET / MEZ).
+        conn.execute("UPDATE th_state SET value = REPLACE(REPLACE(value, ' CET ', ' CEST '), ' MEZ ', ' MESZ ') WHERE key IN ('when', 'when_de')")
+        for col in ('content', 'content_en', 'content_de'):
+            conn.execute("UPDATE posts SET %s = REPLACE(REPLACE(%s, '16:00 CET', '16:00 CEST'), '16:00 Uhr MEZ', '16:00 Uhr MESZ') "
+                         "WHERE is_broadcast = 1" % (col, col))
+        # Older databases only have meeting answers: add the demo baseline from before the meeting.
+        if not conn.execute("SELECT COUNT(*) c FROM pulses WHERE phase = 'before'").fetchone()['c']:
+            for u, v in PULSES['before'].items():
+                row = conn.execute('SELECT id FROM users WHERE username = ?', (PULSE_USERNAMES.get(u, u),)).fetchone()
+                if row:
+                    conn.execute('INSERT OR IGNORE INTO pulses (user_id, phase, value, updated_at) VALUES (?,?,?,?)',
+                                 (row['id'], 'before', v, now_str(600)))
         conn.commit()
         conn.close()
         return
@@ -279,7 +300,7 @@ def seed_demo(get_db, create_user, translate_fields, now_str):
                   now_str(240)))
 
     for k, v in [('phase', 'before'), ('title', 'AMR Rollout · Stuttgart Plant'),
-                 ('when', 'Thu 23 Oct · 16:00 CET / 11:00 ADT')] + list(TOWN_HALL_DE.items()):
+                 ('when', 'Thu 23 Oct · 16:00 CEST / 11:00 ADT')] + list(TOWN_HALL_DE.items()):
         conn.execute('INSERT OR REPLACE INTO th_state (key, value) VALUES (?, ?)', (k, v))
     conn.execute('INSERT INTO polls (question, options, question_de, options_de, is_open, created_at) VALUES (?,?,?,?,1,?)',
                  (POLL['en'], json.dumps(POLL['options']), POLL['de'], json.dumps(POLL['options_de']), now_str(100)))
@@ -288,9 +309,10 @@ def seed_demo(get_db, create_user, translate_fields, now_str):
              'anon_s7': 0, 'anon_s8': 1, 'union': 2, 'safety': 0, 'director2': 3}
     for u, o in votes.items():
         conn.execute('INSERT INTO poll_votes (poll_id, user_id, option_idx) VALUES (?,?,?)', (pid, ids[u], o))
-    for u, v in {'anon_s1': 2, 'anon_s2': 2, 'anon_s3': 3, 'anon_s4': 1, 'anon_s5': 2, 'anon_s6': 3,
-                 'anon_s7': 2, 'anon_s8': 3, 'union': 2, 'safety': 3, 'director2': 4}.items():
-        conn.execute('INSERT INTO pulses (user_id, value, updated_at) VALUES (?,?,?)', (ids[u], v, now_str(20)))
+    for phase, answers in PULSES.items():
+        for u, v in answers.items():
+            conn.execute('INSERT INTO pulses (user_id, phase, value, updated_at) VALUES (?,?,?,?)',
+                         (ids[u], phase, v, now_str(20 if phase == 'live' else 600)))
     for theme, t, status in ACTIONS:
         conn.execute('INSERT INTO actions (theme, title, title_de, owner, owner_de, due, due_de, status, created_at) '
                      'VALUES (?,?,?,?,?,?,?,?,?)',

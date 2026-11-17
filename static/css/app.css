@@ -869,15 +869,16 @@ body.simple.show-impact #impactCard { display: block; order: 11 !important; }
 
 /* ------------------------------------------------------------------
    Phases, for every role. Each phase shows only what belongs to it.
-   Before: live box (with the start time), "Before the Town Hall", poll, concerns.
+   Before: live box (with the start time), "Before the Town Hall", poll, comfort pulse, concerns.
    Live:   live box, reactions (right under it), poll, comfort pulse, charter, agreement.
-   After:  survey (first, above the live box), charter, the signed agreement.
+   After:  survey (first, above the live box), comfort pulse, charter, the signed agreement.
+   The comfort pulse is asked again in every phase, so the change from before to after shows.
    The Product Team also sees the charter before the meeting, to prepare actions.
    ------------------------------------------------------------------ */
 body.ph-before #beforeCard { display: block; }
 body:not(.simple) #beforeCard .bf-sub, body:not(.simple) #beforeCard .bf-list, body:not(.simple) #beforeCard .bf-more { display: none; }
 body:not(.simple) #beforeCard .bf-text { margin-bottom: 8px; }
-body:not(.ph-live) #reactCard, body:not(.ph-live) #pulseCard { display: none; }
+body:not(.ph-live) #reactCard { display: none; }
 body:not(.ph-after) #surveyCard { display: none; }
 body.ph-before #agreementCard { display: none; }
 body.ph-after:not(.ag-open):not(.ag-locked) #agreementCard { display: none; }
@@ -892,3 +893,44 @@ body.ph-before:not(.organizer) #charterCard { display: none; }
   body:not(.organizer) #charterCard .charter-table { display: none; }
   body:not(.organizer) #charterCard .act-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; }
 }
+
+/* ------------------------------------------------------------------
+   Visual pass: fewer lines, one button style, quieter labels.
+   ------------------------------------------------------------------ */
+/* 1. One primary button: solid navy, white text. Light blue now only means "selected". */
+.btn-primary { background: var(--brand-ink); color: #fff; }
+.btn-primary:hover { background: #134E75; }
+.send-big { background: var(--brand-ink); color: #fff; box-shadow: 0 4px 14px rgba(11,60,93,0.22); }
+.cmode.active { background: var(--brand-tint); border-color: var(--brand-ink); color: var(--brand-ink); }
+
+/* 2. No boxes inside boxes: cards keep a border (no shadow); choices inside them are soft fills. */
+.th-card, .th-hero { box-shadow: none; }
+.poll-opt, .face, .react-btn, .scale button { border-color: transparent; background: var(--bg-card); }
+.poll-opt:hover, .face:hover, .react-btn:hover, .scale button:hover { border-color: transparent; background: var(--bg-hover); }
+.poll-opt.mine, .face.on { border-color: var(--accent); }
+.poll-opt .fill { background: var(--bg-active); }
+.scale button.on { background: var(--brand); border-color: var(--brand); }
+.bf-list li, .act-card { border-color: transparent; background: var(--bg-card); }
+.vote-btn { background: #fff; }
+
+/* 3. Quieter headers: the card title says enough. Kept: the comfort-pulse question, "anonymous" on reactions,
+      and the lock badge on a signed charter. */
+#capCard .th-card-head .sub, #impactCard .th-card-head .sub, .focus-card .th-card-head .sub,
+body:not(.ag-locked) #charterSub { display: none; }
+.th-card-head h3 { font-size: 16px; }
+#pulseCard .th-card-head .sub { flex-basis: 100%; font-size: 14px; color: var(--text-secondary); }
+
+/* 4. The live box stays dark in every phase (dark reads as "video"). Speaking and typing captions only make sense
+      during the meeting, so the controls under it show only while live. */
+body:not(.ph-live) #capCard .cap-controls { display: none; }
+
+/* 5. Emoji only where they help (report tiles, reactions, faces); no decorative ones on buttons. */
+.cta-ic, .cm-ic { display: none; }
+
+/* Comfort pulse: the room's answer appears only after you have answered (the Product Team always sees it). */
+#pulseCard:not(.show-room) .pulse-row { display: none; }
+.pulse-room { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.pulse-line { font-size: 13.5px; color: var(--text-secondary); }
+.pulse-line b { color: var(--text-primary); }
+.pulse-first { font-size: 13px; color: var(--text-muted); }
+body.big .pulse-line { font-size: 15px; }

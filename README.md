@@ -34,7 +34,7 @@ The audience has four groups with different needs:
 - German workplace privacy rules forbid identifiable worker telemetry, so participation must be anonymous while still
   showing which stakeholder group a voice belongs to.
 - Most workers write and speak German; Priya works in English.
-- The town hall is one 60-minute session across time zones (Halifax ADT / Stuttgart CET).
+- The town hall is one 60-minute session across time zones (Halifax ADT / Stuttgart CEST).
 
 ### Why existing tools are not enough
 
@@ -68,7 +68,7 @@ into English, grouped into themes and condensed into three ranked focus cards.
 | Voice to text in the quick report, the long post and Chat (German or English) | Workers in gloves or with busy hands | Say more without a keyboard; the phone keyboard's microphone is the fallback |
 | Glove mode (**Aa** button): bigger text, larger tap targets, stronger contrast; on by default on touch screens, except for the Product Team and plant directors | Shop-floor workers | Usable with gloves and at a glance |
 | Layout follows the screen, not the role: on narrow screens (phones and tablets held upright, up to 900 px) every participant gets the simple view, one card per row, with the report form behind one **Problem melden** button, the ranking folded behind **Show all themes and numbers**, the charter as cards, and poll and comfort pulse side by side on tablets; on wide screens everyone gets the full view, with the ranking open and the charter as a table (as cards, two per row, when the charter card is narrower than 960 px, e.g. on a laptop with the Live Room open). Settings offers Automatic / Simple / Detailed; the Product Team always has the facilitator view | All participants | Everyone sees the same content; only the arrangement changes with the screen |
-| Town Hall follows the phase, for every role: **before** the live box shows the start time, with the "Before the Town Hall" note, the poll and the ranked concerns; **during** the live reactions sit right under the live box, with the comfort pulse, the action charter and the Co-Design Agreement; **after** the survey comes first, then the charter and the signed agreement (the Product Team also sees the charter before the meeting, to prepare actions) | Everyone | Each phase shows only what can be done in it |
+| Town Hall follows the phase, for every role: **before** the live box shows the start time, with the "Before the Town Hall" note, the poll, the comfort pulse and the ranked concerns; **during** the live reactions sit right under the live box, with the poll, the comfort pulse, the action charter and the Co-Design Agreement; **after** the survey comes first, then the comfort pulse, the charter and the signed agreement (the Product Team also sees the charter before the meeting, to prepare actions) | Everyone | Each phase shows only what can be done in it |
 | Bilingual charter and polls: **+ Turn into action** and **+ New poll** offer ready-made English + German versions (`ACTION_TEMPLATES` and `POLL_TEMPLATES` in `bp_engine.py`), or Priya types the German line herself; the meeting title, demo actions and demo poll are stored in both languages | German-speaking workers, Priya | Workers vote on actions and polls in German without a live translation service |
 | Colour means theme: each theme has its own colour (checked for normal and colour-blind vision) shown next to its name; stakeholder groups are named in words and have no colour of their own (where a bar splits by group it uses dark-to-light shades of one slate, line workers darkest); status is a text pill | Everyone | Concerns can be grouped at a glance, and a colour never stands for a theme and a group at the same time |
 | German interface for the worker-facing screens (join page, quick report, posts, Co-Design Agreement) | German-speaking workers | No English needed to take part |
@@ -82,8 +82,9 @@ into English, grouped into themes and condensed into three ranked focus cards.
 | Pinned company broadcasts | Priya | One trusted channel for announcements before the session |
 | Breakout rooms | All groups | Smaller, private discussions |
 | Live captions with speech recognition | Remote and noisy-floor participants | Follow the discussion in their own language |
-| Live poll (raw or weighted), comfort pulse, reactions | Priya | Read the room in real time and adapt the agenda |
-| Action charter with agree / not yet; posts show when their concern is in the charter | All groups | Leave with a shared, visible agreement rather than survey charts |
+| Live poll (raw or weighted), reactions | Priya | Read the room in real time and adapt the agenda |
+| Comfort pulse (*How comfortable do you feel about the AMR rollout right now?*), asked again before, during and after the meeting and stored per phase; participants see the room's answer only after giving their own, and everyone then sees the change (e.g. before 2.0 → during 2.5 → after 3.4); facilitation advice such as "slow down, listen" is shown to Priya only | Everyone; Priya | Shows whether the town hall actually changed how people feel about the rollout |
+| Action charter with agree / not yet; posts show when their theme has an action in the charter ("Action on this theme", with how many more) | All groups | Leave with a shared, visible agreement rather than survey charts |
 | Co-Design Agreement with signatures from works council, plant management and Product Team | Union, directors, Priya | A compromise both sides formally accept before the call ends, instead of minutes e-mailed later |
 | Locked charter with SHA-256 fingerprint and printable `/charter` page | All groups | Nobody can quietly change what was signed |
 | After-meeting survey | Priya, management | Check whether participants actually felt heard |
@@ -104,7 +105,7 @@ How the prototype lets the team test them:
 |---|---|
 | H1 | Number of anonymous reports, how many are sent as quick reports (tiles, voice) versus typed, and "Me too" support compared with open discussion |
 | H2 | Whether Priya gets through the three focus cards within the agenda; quality of translation and categorisation |
-| H3 | "Works for me / Not yet" on each trial rule and action, whether all three groups sign before the end, and the after-meeting "felt heard" and "plan addresses concerns" scores |
+| H3 | "Works for me / Not yet" on each trial rule and action, whether all three groups sign before the end, the after-meeting "felt heard" and "plan addresses concerns" scores, and the change in the comfort pulse from before to after the meeting |
 
 ## User validation
 
@@ -156,11 +157,11 @@ led to the **simple view** and to colour being used for themes only.
 | Files and recordings | Local `static/uploads` | S3 |
 | Translation and AI assistance | LLM API if configured, otherwise a free online translation API, otherwise an offline glossary; themes from preset tiles and keyword rules; one-sentence focus-card summaries by the LLM if configured; rule-based prompts and cultural notes | LLM API (translation, categorisation, summaries, explaining wording and cultural differences) |
 | Speech transcription | Browser Web Speech API (captions, chat, voice reports) | Speech recognition API |
-| Delivery to Priya | Standalone web app with QR join | Microsoft Teams meeting plugin plus mobile web app for workers |
+| Delivery to Priya | Standalone web app with QR join | Standalone web app: desktop view for Priya, phone view for workers |
 
 **Feasibility.** Every part of the target stack is an established, widely used technology. The prototype shows the
 full flow end to end with a minimal stack that runs with one command; moving to production mainly means replacing
-SQLite with PostgreSQL/Redis, adding LiveKit for audio and video, packaging the host view as a Teams app, and routing
+SQLite with PostgreSQL/Redis, adding LiveKit for audio and video, and routing
 translation, summaries and speech through providers under a data-processing agreement.
 
 ### Privacy by design
@@ -322,4 +323,3 @@ DGIN5001-Group-4/
 - The agenda (segment lengths and the 15-minute agreement window) is fixed in `bp_engine.py`.
 - Voice and video call buttons only perform signalling; real calls require LiveKit/WebRTC.
 - Plant locations are chosen from a list; tagging issues on an interactive factory map is planned.
-- The host view runs as a standalone web app rather than a Microsoft Teams plugin.

@@ -31,7 +31,7 @@ var TX = {
     zl3: 'Others only see your group and a random handle', zl4: 'Photo location data is removed before upload',
     zl5: 'What is stored: your report, your group and your language',
     nowDiscussing: 'Now discussing', nowHint: 'React or vote below',
-    actionLink: 'In the action charter', statusProposed: 'proposed', statusAgreed: 'agreed', statusUnresolved: 'unresolved', statusSigned: 'signed',
+    actionLink: 'Action on this theme', actionMore: 'more', statusProposed: 'proposed', statusAgreed: 'agreed', statusUnresolved: 'unresolved', statusSigned: 'signed',
     agTitle: 'Co-Design Agreement', agSub: 'final 15 minutes · trial rules both sides sign',
     agLater: 'Opens in the final 15 minutes. Union reps and plant management agree on concrete trial rules and co-sign the charter. You can show your view on each rule.',
     agWorks: 'Works for me', agNotYet: 'Not yet', agWaiting: 'not signed yet', agSign: 'Sign for my group',
@@ -60,7 +60,7 @@ var TX = {
     zl3: 'Andere sehen nur deine Gruppe und ein zufälliges Kürzel', zl4: 'Standortdaten in Fotos werden vor dem Hochladen entfernt',
     zl5: 'Gespeichert wird: deine Meldung, deine Gruppe und deine Sprache',
     nowDiscussing: 'Jetzt im Gespräch', nowHint: 'Unten reagieren oder abstimmen',
-    actionLink: 'Im Maßnahmenplan', statusProposed: 'vorgeschlagen', statusAgreed: 'vereinbart', statusUnresolved: 'offen', statusSigned: 'unterschrieben',
+    actionLink: 'Maßnahme zu diesem Thema', actionMore: 'weitere', statusProposed: 'vorgeschlagen', statusAgreed: 'vereinbart', statusUnresolved: 'offen', statusSigned: 'unterschrieben',
     agTitle: 'Gemeinsame Vereinbarung', agSub: 'letzte 15 Minuten · Testregeln, die beide Seiten unterschreiben',
     agLater: 'Öffnet in den letzten 15 Minuten. Betriebsrat und Werksleitung legen konkrete Testregeln fest und unterschreiben den Plan. Du kannst bei jeder Regel deine Meinung zeigen.',
     agWorks: 'Passt für mich', agNotYet: 'Noch nicht', agWaiting: 'noch nicht unterschrieben', agSign: 'Für meine Gruppe unterschreiben',
@@ -87,7 +87,9 @@ var TX2 = {
     impactTitle: 'Biggest impact first', impactSub: 'from the Square, role-weighted',
     pollTitle: 'Live poll', noPoll: 'No poll yet.', votes: 'votes', pollOpen: 'open', pollClosed: 'closed', weighted: 'Weighted by group',
     pulseTitle: 'Comfort pulse', pulseSub: 'How comfortable do you feel about the AMR rollout right now?',
-    pulseMine: 'Your mood', pulseChange: 'change',
+    pulseMine: 'Your mood', pulseChange: 'change', pulseRoom: 'In the room', pulseAnswers: 'answers', pulseTrend: 'Over time',
+    pulseFirst: 'Tap a face to see how the room feels.', ph_before: 'before', ph_live: 'during', ph_after: 'after',
+    moodTitle: 'Room mood', mood1: 'Mostly uneasy', mood2: 'Mixed', mood3: 'Mostly comfortable',
     face1: 'Very uneasy', face2: 'Uneasy', face3: 'Neutral', face4: 'OK', face5: 'Confident',
     reactTitle: 'React live', reactSub: 'anonymous, instant',
     re_agree: 'Agree', re_unsure: 'Unsure', re_concern: 'Concern', re_applause: 'Thanks',
@@ -124,7 +126,9 @@ var TX2 = {
     impactTitle: 'Was am meisten bewegt', impactSub: 'aus dem Square, nach Gruppe gewichtet',
     pollTitle: 'Abstimmung', noPoll: 'Noch keine Abstimmung.', votes: 'Stimmen', pollOpen: 'offen', pollClosed: 'geschlossen', weighted: 'Nach Gruppe gewichtet',
     pulseTitle: 'Stimmung', pulseSub: 'Wie wohl fühlst du dich gerade mit den AMRs?',
-    pulseMine: 'Deine Stimmung', pulseChange: 'ändern',
+    pulseMine: 'Deine Stimmung', pulseChange: 'ändern', pulseRoom: 'Im Raum', pulseAnswers: 'Antworten', pulseTrend: 'Verlauf',
+    pulseFirst: 'Tippe ein Gesicht an, dann siehst du die Stimmung im Raum.', ph_before: 'vorher', ph_live: 'im Meeting', ph_after: 'danach',
+    moodTitle: 'Stimmung im Raum', mood1: 'Eher unwohl', mood2: 'Gemischt', mood3: 'Eher wohl',
     face1: 'Sehr unwohl', face2: 'Unwohl', face3: 'Neutral', face4: 'Okay', face5: 'Zuversichtlich',
     reactTitle: 'Live reagieren', reactSub: 'anonym, sofort',
     re_agree: 'Zustimmung', re_unsure: 'Unsicher', re_concern: 'Bedenken', re_applause: 'Danke',
@@ -391,12 +395,13 @@ function statusWord(s) {
 }
 function actionLink(p) {
   if (!p.action) return '';
-  var st = p.action.status;
+  // The link is per theme (the theme's first action), not per post, and the wording says so.
+  var st = p.action.status, more = p.action.more ? ' (+' + p.action.more + ' ' + esc(tx('actionMore')) + ')' : '';
   if (SIMPLE) {
     // One short line instead of repeating the full action title under every post.
-    return '<div class="post-action-link mini st-' + esc(st) + '">' + ICON.pen + '<span>' + esc(tx('actionLink')) + ' · ' + esc(tx('st_' + st)) + '</span></div>';
+    return '<div class="post-action-link mini st-' + esc(st) + '">' + ICON.pen + '<span>' + esc(tx('actionLink')) + ' · ' + esc(tx('st_' + st)) + more + '</span></div>';
   }
-  return '<div class="post-action-link st-' + esc(st) + '">' + ICON.pen + '<span>' + esc(tx('actionLink')) + ': <b>' + esc(actionTitle(p.action)) + '</b> · ' + esc(tx('st_' + st)) + '</span></div>';
+  return '<div class="post-action-link st-' + esc(st) + '">' + ICON.pen + '<span>' + esc(tx('actionLink')) + ': <b>' + esc(actionTitle(p.action)) + '</b> · ' + esc(tx('st_' + st)) + more + '</span></div>';
 }
 function postHTML(p) {
   var a = p.author;
@@ -612,7 +617,7 @@ function renderQuick() {
 function feelHTML() {
   var v = quick.sentiment, s = v ? SENTS[v] : null;
   return '<div class="feel' + (v ? '' : ' unset') + '" id="feelBox">' +
-    '<div class="feel-now"><span class="feel-face" id="feelFace">' + (s ? s.face : '👆') + '</span><span class="feel-label" id="feelLabel">' + esc(s ? feelLabel(v) : tx('swipe')) + '</span></div>' +
+    '<div class="feel-now"><span class="feel-face" id="feelFace">' + (s ? s.face : '') + '</span><span class="feel-label" id="feelLabel">' + esc(s ? feelLabel(v) : tx('swipe')) + '</span></div>' +
     '<input type="range" min="1" max="5" step="1" value="' + (v || 3) + '" class="feel-range" id="feelRange" aria-label="' + esc(tx('step3')) + '" oninput="onFeel(this.value)" onchange="onFeel(this.value)">' +
     '<div class="feel-scale">' + [1, 2, 3, 4, 5].map(function (i) { return '<button onclick="onFeel(' + i + ')" aria-label="' + esc(feelLabel(i)) + '">' + SENTS[i].face + '</button>'; }).join('') + '</div></div>';
 }
@@ -782,17 +787,21 @@ function renderLivePanel() {
   var chips = Object.keys(th.online_roles).map(function (k) {
     return '<span class="role-chip"><i style="background:' + ROLES[k].color + '"></i>' + esc(ROLES[k].label) + ' · ' + th.online_roles[k] + '</span>';
   }).join('') || '<span class="engine-note">Nobody else online yet.</span>';
-  var mood = th.pulse.avg >= 4 ? 'Mostly comfortable' : th.pulse.avg >= 3 ? 'Mixed' : 'Uneasy — slow down, listen';
+  // Advice for the facilitator ("slow down, listen", "address next") is for the Product Team only; everyone else
+  // sees a neutral room mood, and only after answering the comfort question themselves.
+  var org = ME.isOrganizer, seeRoom = org || !!th.pulse.mine, lvl = th.pulse.avg >= 4 ? 3 : th.pulse.avg >= 3 ? 2 : 1;
+  var orgLow = { before: 'Uneasy going in — open by listening', live: 'Uneasy — slow down, listen', after: 'Still uneasy — follow up on the charter' };
+  var mood = org ? (lvl === 3 ? 'Mostly comfortable' : lvl === 2 ? 'Mixed' : orgLow[th.phase] || orgLow.live) : tx('mood' + lvl);
   el.innerHTML =
     '<div class="ins-stats"><div class="ins-stat"><b>' + th.online + '</b><span>online now</span></div>' +
-    '<div class="ins-stat"><b>' + th.pulse.avg + '</b><span>comfort /5</span></div>' +
+    '<div class="ins-stat"><b>' + (seeRoom && th.pulse.n ? fmtAvg(th.pulse.avg) : '–') + '</b><span>comfort /5</span></div>' +
     '<div class="ins-stat"><b>' + (th.poll ? th.poll.total : 0) + '</b><span>poll votes</span></div></div>' +
     '<div class="ins-section">In the room</div><div class="role-chips">' + chips + '</div>' +
-    '<div class="ai-suggestion' + (th.pulse.avg < 3 ? ' note' : '') + '"><div class="ai-suggestion-label">Room mood</div><div class="ai-suggestion-text">' + mood + ' (' + th.pulse.n + ' responses)</div></div>' +
+    (seeRoom && th.pulse.n ? '<div class="ai-suggestion' + (org && lvl === 1 ? ' note' : '') + '"><div class="ai-suggestion-label">' + esc(org ? 'Room mood' : tx('moodTitle')) + '</div><div class="ai-suggestion-text">' + esc(mood) + ' (' + th.pulse.n + ' ' + esc(org ? 'responses' : tx('pulseAnswers')) + ')</div></div>' : '') +
     '<div class="ins-section">Reactions so far</div><div class="role-chips">' + REACTIONS.map(function (r) {
       return '<span class="role-chip">' + r.e + ' ' + esc(r.l) + ' · ' + (th.reactions[r.k] || 0) + '</span>';
     }).join('') + '</div>' +
-    (th.top_concerns[0] ? '<div class="ai-suggestion"><div class="ai-suggestion-label">Address next</div><div class="ai-suggestion-text"><b>' + esc(th.top_concerns[0].label) + '</b> — ' + esc(th.top_concerns[0].summary) + '</div></div>' : '');
+    (org && th.top_concerns[0] ? '<div class="ai-suggestion"><div class="ai-suggestion-label">Address next</div><div class="ai-suggestion-text"><b>' + esc(th.top_concerns[0].label) + '</b> — ' + esc(th.top_concerns[0].summary) + '</div></div>' : '');
 }
 
 function loadContacts() {
@@ -1228,22 +1237,37 @@ function createPoll() {
 }
 function closePoll() { api('/api/townhall/poll/close', {}).then(function () { toast('Poll closed'); }); }
 var pulseEdit = false;
+function fmtAvg(x) { var t = Number(x).toFixed(1); return state.lang === 'de' ? t.replace('.', ',') : t; }
+// Comfort pulse, asked again in every phase. Participants see the room only after they have answered
+// (so nobody just follows the crowd); the Product Team always sees it and does not answer.
+var pulsePhaseSeen = null;
 function renderPulse() {
-  var p = state.th.pulse;
-  // Simple view: once a worker has answered, fold the card to one line they can reopen.
-  var folded = SIMPLE && p.mine && !pulseEdit;
-  if ($('pulseCard')) $('pulseCard').classList.toggle('folded', !!folded);
-  if (folded) {
+  var p = state.th.pulse, org = ME.isOrganizer, answered = !!p.mine, seeRoom = org || answered;
+  if (p.phase !== pulsePhaseSeen) { pulsePhaseSeen = p.phase; pulseEdit = false; }
+  var folded = SIMPLE && answered && !pulseEdit;
+  var card = $('pulseCard');
+  if (card) { card.classList.toggle('folded', !!folded); card.classList.toggle('show-room', seeRoom); }
+  if (org) {
+    $('faces').innerHTML = '';
+  } else if (folded) {
     $('faces').innerHTML = '<div class="pulse-mine"><span class="pm-face">' + FACES[p.mine - 1].e + '</span><span>' + esc(tx('pulseMine')) + ': <b>' + esc(tx('face' + p.mine)) + '</b></span>' +
       '<button class="btn-ghost sm" onclick="pulseEdit=true;renderPulse()">' + esc(tx('pulseChange')) + '</button></div>';
-    return;
+  } else {
+    $('faces').innerHTML = FACES.map(function (f, i) {
+      return '<button class="face' + (p.mine === i + 1 ? ' on' : '') + '" onclick="sendPulse(' + (i + 1) + ')">' + f.e + '<span>' + esc(tx('face' + (i + 1))) + '</span></button>';
+    }).join('');
   }
-  $('faces').innerHTML = FACES.map(function (f, i) {
-    return '<button class="face' + (p.mine === i + 1 ? ' on' : '') + '" onclick="sendPulse(' + (i + 1) + ')">' + f.e + '<span>' + esc(tx('face' + (i + 1))) + '</span></button>';
-  }).join('');
-  $('pulseAvg').innerHTML = (p.n ? p.avg : '–') + '<small> / 5 · ' + p.n + '</small>';
+  $('pulseAvg').innerHTML = (p.n ? fmtAvg(p.avg) : '–') + '<small> / 5 · ' + p.n + '</small>';
   var mx = Math.max.apply(null, p.dist.concat([1]));
   $('pulseDist').innerHTML = p.dist.map(function (c, i) { return '<div title="' + FACES[i].l + ': ' + c + '" style="height:' + (100 * c / mx) + '%"></div>'; }).join('');
+  var room = $('pulseRoom'); if (!room) return;
+  if (!seeRoom) { room.innerHTML = '<div class="pulse-first">' + esc(tx('pulseFirst')) + '</div>'; return; }
+  var upto = ['before', 'live', 'after'].indexOf(p.phase);
+  var trend = (p.trend || []).filter(function (t, i) { return i <= upto && t.n; }).map(function (t) {
+    return esc(tx('ph_' + t.phase)) + ' <b>' + fmtAvg(t.avg) + '</b> (' + t.n + ')';
+  });
+  room.innerHTML = (SIMPLE ? '<div class="pulse-line">' + esc(tx('pulseRoom')) + ': <b>' + (p.n ? fmtAvg(p.avg) : '–') + ' / 5</b> · ' + p.n + ' ' + esc(tx('pulseAnswers')) + '</div>' : '') +
+    (trend.length > 1 ? '<div class="pulse-line">' + esc(tx('pulseTrend')) + ': ' + trend.join(' → ') + '</div>' : '');
 }
 function sendPulse(v) { pulseEdit = false; api('/api/townhall/pulse', { value: v }); }
 function renderReactions() {
