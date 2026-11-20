@@ -16,6 +16,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 
 import bp_engine as bp
+import plant_map
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__)
@@ -42,8 +43,8 @@ UPLOAD_DIR = os.path.join(BASE_DIR, 'static', 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 PORT = int(os.environ.get('PORT', 8080))
 
-ZONES = ['Hall 1 · Body shop', 'Hall 2 · Paint', 'Hall 3 · Final assembly', 'Hall 4 · Logistics / AMR lanes',
-         'Warehouse', 'Break room', 'Office']
+# Plant zones and the three fixed spots in each zone: see plant_map.py.
+ZONES = plant_map.ZONE_KEYS
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -138,6 +139,11 @@ def init_db():
             param_id INTEGER, user_id INTEGER, vote TEXT,
             PRIMARY KEY (param_id, user_id)
         );
+        -- "Not yet" with a counter-proposal: the value a person could accept, or "I need more information first".
+        CREATE TABLE IF NOT EXISTS param_proposals (
+            param_id INTEGER, user_id INTEGER, value TEXT, reason TEXT, created_at TIMESTAMP,
+            PRIMARY KEY (param_id, user_id)
+        );
         CREATE TABLE IF NOT EXISTS agreement_signatures (
             role TEXT PRIMARY KEY, user_id INTEGER, handle TEXT, signed_at TIMESTAMP
         );
@@ -148,7 +154,7 @@ def init_db():
 def migrate_db():
     conn = get_db()
     cols = {r['name'] for r in conn.execute('PRAGMA table_info(posts)').fetchall()}
-    for name, kind in (('tags', 'TEXT'), ('sentiment', 'INTEGER')):
+    for name, kind in (('tags', 'TEXT'), ('sentiment', 'INTEGER'), ('spot', 'INTEGER')):
         if name not in cols:
             conn.execute('ALTER TABLE posts ADD COLUMN %s %s' % (name, kind))
     action_cols = {r['name'] for r in conn.execute('PRAGMA table_info(actions)').fetchall()}
@@ -326,7 +332,7 @@ def index():
               for k, v in bp.THEMES.items()}
     themes['other'] = {'label': bp.THEME_OTHER['label'], 'label_de': bp.THEME_OTHER['label_de'],
                        'color': bp.THEME_OTHER['color'], 'icon': bp.THEME_OTHER['icon']}
-    return render_template('index.html', user=current_user, zones=ZONES, themes=themes,
+    return render_template('index.html', user=current_user, zones=ZONES, plant=plant_map.boot(), themes=themes,
                            roles=bp.ROLES, join_url=join_url(), llm=bp.llm_available(),
                            quick_tags=bp.QUICK_TAGS, sentiments=bp.SENTIMENTS, agenda=bp.AGENDA,
                            signer_roles=bp.SIGNER_ROLES,
@@ -429,7 +435,7 @@ def serialize_post(conn, r, uid, theme_actions=None):
         'content': r['content'], 'lang': r['lang'],
         'content_en': r['content_en'], 'content_de': r['content_de'], 'tr_engine': r['tr_engine'],
         'theme': r['theme'], 'theme_label': t['label'], 'theme_color': t['color'],
-        'zone': r['zone'], 'media_url': r['media_url'], 'media_type': r['media_type'],
+        'zone': r['zone'], 'spot': r['spot'], 'media_url': r['media_url'], 'media_type': r['media_type'],
         'is_broadcast': bool(r['is_broadcast']),
         'support': len(supporter_roles), 'supported': bool(mine),
         'score': bp.post_score(r['role'], supporter_roles, n_comments),
@@ -490,13 +496,14 @@ def api_create_post():
     else:
         lang, en, de, engine = current_user.language, '', '', 'none'
     zone = data.get('zone') if data.get('zone') in ZONES else None
+    spot = plant_map.valid_spot(zone, data.get('spot'))  # one of the zone's three fixed spots, or the whole zone
     conn = get_db()
     cur = conn.execute('''INSERT INTO posts (author_id, content, lang, content_en, content_de, tr_engine, theme, zone,
-                          media_url, media_type, is_broadcast, created_at, tags, sentiment)
-                          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                          media_url, media_type, is_broadcast, created_at, tags, sentiment, spot)
+                          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
                        (current_user.id, content, lang, en, de, engine, theme, zone,
                         media_url, data.get('media_type'), broadcast, now_str(),
-                        json.dumps(tags) if tags else None, sentiment))
+                        json.dumps(tags) if tags else None, sentiment, spot))
     pid = cur.lastrowid
     conn.commit()
     conn.close()
@@ -678,6 +685,7 @@ def api_contacts():
             'id': g['id'], 'name': g['name'], 'initials': word_initials(g['name'].replace('Breakout', '')),
             'color': '#8DC8E8', 'status': None, 'members': n,
             'preview': (person(last)['name'].replace('Anonymous ', '') + ': ' + last['content'][:40]) if last else '',
+            'last_role': last['role'] if last else None, 'last_text': last['content'][:40] if last else '',
             'time': last['created_at'][11:16] if last else '', 'type': 'group', 'target_id': g['id'],
         })
     for u in users:
@@ -688,6 +696,7 @@ def api_contacts():
         contacts.append({
             'id': u['id'], 'name': p['name'] if u['role'] == 'organizer' else p['name'] + ' ' + p['handle'],
             'initials': p['initials'], 'color': p['color'], 'role_label': p['role_label'],
+            'role': u['role'], 'base_name': p['name'], 'handle': p['handle'],
             'status': 'online' if (u['id'] in online_users or u['username'] == 'helper') else 'offline',
             'preview': last['content'][:40] if last else '', 'time': last['created_at'][11:16] if last else '',
             'type': 'chat', 'target_id': u['id'],
@@ -828,6 +837,7 @@ def townhall_state(uid, is_org):
             online_roles[r['role']] = r['c']
     insights = compute_insights(conn)
     agreement = agreement_state(conn, uid)
+    cams = cams_out(conn, uid)
     survey_n = conn.execute('SELECT COUNT(*) c FROM survey').fetchone()['c']
     conn.close()
     clock = clock_info(phase)
@@ -845,6 +855,9 @@ def townhall_state(uid, is_org):
         'top_concerns': public_themes(insights['themes']),
         'clock': clock, 'focus': focus, 'agreement': agreement,
         'charter_locked': agreement['locked'],
+        'cams': cams,
+        'share': int(get_state('share')) if phase == 'live' and (get_state('share') or '').isdigit() else None,
+        'share_by': get_state('share_by') or '',
     }
     if is_org:
         cards = build_cards(insights['themes'], actions, focus)
@@ -913,6 +926,19 @@ def agreement_state(conn, uid):
         votes = {v['vote']: v['c'] for v in conn.execute(
             'SELECT vote, COUNT(*) c FROM param_votes WHERE param_id = ? GROUP BY vote', (p['id'],)).fetchall()}
         mine = conn.execute('SELECT vote FROM param_votes WHERE param_id = ? AND user_id = ?', (p['id'], uid)).fetchone()
+        props, info, my_prop = {}, 0, None
+        for r in conn.execute('SELECT user_id, value, reason FROM param_proposals WHERE param_id = ?', (p['id'],)).fetchall():
+            if r['user_id'] == uid:
+                my_prop = {'value': r['value'] or '', 'reason': r['reason'] or ''}
+            if r['reason'] == 'info':
+                info += 1
+            elif r['value']:
+                props[r['value']] = props.get(r['value'], 0) + 1
+        proposals = []
+        for v, n in sorted(props.items(), key=lambda kv: -kv[1]):
+            alt = dict(p)
+            alt['value'] = v
+            proposals.append({'value': v, 'n': n, 'display': param_display(alt, 'en'), 'display_de': param_display(alt, 'de')})
         params.append({
             'id': p['id'], 'key': p['key'], 'label': p['label'], 'label_de': p['label_de'], 'kind': p['kind'],
             'value': p['value'], 'unit': p['unit'], 'unit_de': p['unit_de'],
@@ -920,6 +946,7 @@ def agreement_state(conn, uid):
             'options': json.loads(p['options'] or '[]'),
             'display': param_display(p, 'en'), 'display_de': param_display(p, 'de'),
             'ok': votes.get('ok', 0), 'not_yet': votes.get('not_yet', 0), 'my_vote': mine['vote'] if mine else None,
+            'proposals': proposals, 'info': info, 'my_proposal': my_prop,
         })
     sigs = {r['role']: r for r in conn.execute('SELECT * FROM agreement_signatures').fetchall()}
     locked_at = get_state('agreement_locked_at')
@@ -986,6 +1013,71 @@ def locked_response():
 def broadcast_th():
     socketio.emit('th_update', {})
 
+# ---- Camera and shared slides (demo only) ---------------------------------------------------------------------
+# No video is recorded, sent or analysed. The app only remembers who switched the camera on and which demo slide
+# is shown, so every screen can draw a placeholder where that person's face (or the slides) would be.
+DEMO_CAMS = ('director', 'anon_s3', 'anon_s6')   # in the demo, plant management and two workers have the camera on
+SLIDE_COUNT = 3                                 # the demo slides live in static/js/app.js (DEMO_SLIDES)
+
+def cam_ids():
+    raw = get_state('cams')
+    if raw is None:
+        conn = get_db()
+        rows = conn.execute('SELECT id FROM users WHERE username IN (%s)' % ','.join('?' * len(DEMO_CAMS)), DEMO_CAMS).fetchall()
+        conn.close()
+        return [r['id'] for r in rows]
+    try:
+        return [int(x) for x in json.loads(raw)]
+    except (TypeError, ValueError):
+        return []
+
+def cam_key(uid):
+    # An opaque key instead of the user id, so a caption can be matched to a camera tile without exposing ids.
+    return hashlib.sha256(('%s:cam:%s' % (app.secret_key, uid)).encode()).hexdigest()[:12]
+
+def cams_out(conn, uid):
+    ids = cam_ids()
+    if not ids:
+        return []
+    rows = {r['id']: r for r in conn.execute('SELECT id, role, display_name FROM users WHERE id IN (%s)' % ','.join('?' * len(ids)),
+                                              ids).fetchall()}
+    out = []
+    for i in ids:
+        r = rows.get(i)
+        if not r:
+            continue
+        kind = r['role'] if r['role'] in ('organizer', 'director') else 'other'
+        out.append({'k': cam_key(i), 'kind': kind, 'me': i == uid,
+                    'name': r['display_name'].split(' · ')[0] if kind == 'organizer' else ''})
+    out.sort(key=lambda c: {'organizer': 0, 'director': 1}.get(c['kind'], 2))
+    return out
+
+@app.route('/api/townhall/camera', methods=['POST'])
+@login_required
+def api_camera():
+    on = bool((request.get_json() or {}).get('on'))
+    ids = [i for i in cam_ids() if i != current_user.id] + ([current_user.id] if on else [])
+    set_state('cams', json.dumps(ids))
+    broadcast_th()
+    return jsonify({'on': on})
+
+@app.route('/api/townhall/share', methods=['POST'])
+@login_required
+@organizer_required
+def api_share():
+    slide = (request.get_json() or {}).get('slide')
+    if slide is None or slide == '':
+        set_state('share', '')
+    else:
+        try:
+            n = int(slide)
+        except (TypeError, ValueError):
+            n = 0
+        set_state('share', str(min(max(n, 0), SLIDE_COUNT - 1)))
+        set_state('share_by', current_user.display_name.split(' · ')[0])
+    broadcast_th()
+    return jsonify({'ok': True})
+
 @app.route('/api/townhall')
 @login_required
 def api_townhall():
@@ -1010,6 +1102,8 @@ def api_phase():
             set_state('live_started_at', '')
             set_state('live_ended_at', '')
             set_state('focus_theme', '')
+        if phase != 'live':
+            set_state('share', '')
         set_state('phase', phase)
         broadcast_th()
     return jsonify({'phase': get_state('phase')})
@@ -1213,6 +1307,7 @@ def api_agreement_param(pid):
     if changed:
         conn.execute('UPDATE agreement_params SET value = ? WHERE id = ?', (value, pid))
         conn.execute('DELETE FROM param_votes WHERE param_id = ?', (pid,))
+        conn.execute('DELETE FROM param_proposals WHERE param_id = ?', (pid,))
         conn.commit()
     conn.close()
     if changed:
@@ -1232,9 +1327,50 @@ def api_agreement_param_vote(pid):
         conn = get_db()
         conn.execute('INSERT OR REPLACE INTO param_votes (param_id, user_id, vote) VALUES (?,?,?)',
                      (pid, current_user.id, vote))
+        if vote == 'ok':
+            conn.execute('DELETE FROM param_proposals WHERE param_id = ? AND user_id = ?', (pid, current_user.id))
         conn.commit()
         conn.close()
         broadcast_th()
+    return jsonify({'ok': True})
+
+@app.route('/api/agreement/params/<int:pid>/propose', methods=['POST'])
+@login_required
+def api_agreement_param_propose(pid):
+    # After "Not yet": say what would work instead (a value), or that more information is needed first.
+    if charter_locked():
+        return locked_response()
+    if get_state('agreement_open') != '1':
+        return jsonify({'error': 'The agreement is not open yet'}), 400
+    data = request.get_json() or {}
+    conn = get_db()
+    p = conn.execute('SELECT * FROM agreement_params WHERE id = ?', (pid,)).fetchone()
+    if not p:
+        conn.close()
+        abort(404)
+    value, reason = '', ''
+    if data.get('reason') == 'info':
+        reason = 'info'
+    elif p['kind'] == 'number':
+        try:
+            value = '%g' % max(p['min'], min(p['max'], float(data.get('value'))))
+        except (TypeError, ValueError):
+            conn.close()
+            return jsonify({'error': 'Enter a number'}), 400
+    else:
+        value = str(data.get('value', ''))
+        if value not in [o['v'] for o in json.loads(p['options'] or '[]')]:
+            conn.close()
+            return jsonify({'error': 'Not one of the options'}), 400
+    if value and value == p['value']:
+        conn.close()
+        return jsonify({'error': 'That is the current value'}), 400
+    conn.execute('INSERT OR REPLACE INTO param_votes (param_id, user_id, vote) VALUES (?,?,?)', (pid, current_user.id, 'not_yet'))
+    conn.execute('INSERT OR REPLACE INTO param_proposals (param_id, user_id, value, reason, created_at) VALUES (?,?,?,?,?)',
+                 (pid, current_user.id, value, reason, now_str()))
+    conn.commit()
+    conn.close()
+    broadcast_th()
     return jsonify({'ok': True})
 
 @app.route('/api/agreement/sign', methods=['POST'])
@@ -1285,33 +1421,47 @@ def charter_page():
 def api_notifications():
     phase = get_state('phase', 'before')
     when = get_state('when', '')
+    when_de = get_state('when_de') or when
     notes = [
-        {'id': 1, 'title': 'Town Hall: ' + get_state('title', ''), 'text': when + ' — share concerns in the Square beforehand.', 'time': 'pinned', 'read': phase != 'before'},
-        {'id': 2, 'title': 'You are anonymous', 'text': 'Posts only show your group (e.g. Line Worker). Management never sees names.', 'time': '', 'read': False},
-        {'id': 3, 'title': 'Write in German or English', 'text': 'Every post and chat message is translated automatically.', 'time': '', 'read': True},
+        {'id': 1, 'title': 'Town Hall: ' + get_state('title', ''), 'text': when + ' — share concerns in the Square beforehand.',
+         'title_de': 'Town Hall: ' + (get_state('title_de') or get_state('title', '')),
+         'text_de': when_de + ' – teile deine Anliegen vorher im Square.', 'time': 'pinned', 'read': phase != 'before'},
+        {'id': 2, 'title': 'You are anonymous', 'text': 'Posts only show your group (e.g. Line Worker). Management never sees names.',
+         'title_de': 'Du bist anonym', 'text_de': 'Beiträge zeigen nur deine Gruppe (z. B. Bandarbeiter/in). Das Management sieht keine Namen.',
+         'time': '', 'read': False},
+        {'id': 3, 'title': 'Write in German or English', 'text': 'Every post and chat message is translated automatically.',
+         'title_de': 'Schreib auf Deutsch oder Englisch', 'text_de': 'Jeder Beitrag und jede Chat-Nachricht wird automatisch übersetzt.',
+         'time': '', 'read': True},
     ]
     if phase == 'live':
-        notes.insert(0, {'id': 4, 'title': 'Town Hall is LIVE', 'text': 'Open the Town Hall tab to vote and react.', 'time': 'now', 'read': False})
+        notes.insert(0, {'id': 4, 'title': 'Town Hall is LIVE', 'text': 'Open the Town Hall tab to vote and react.',
+                         'title_de': 'Das Town Hall ist LIVE', 'text_de': 'Öffne den Town-Hall-Tab, um abzustimmen und zu reagieren.',
+                         'time': 'now', 'read': False})
     if phase == 'after':
-        notes.insert(0, {'id': 5, 'title': 'Did you feel heard?', 'text': '2-minute survey in the Town Hall tab.', 'time': 'now', 'read': False})
+        notes.insert(0, {'id': 5, 'title': 'Did you feel heard?', 'text': '2-minute survey in the Town Hall tab.',
+                         'title_de': 'Wurdest du gehört?', 'text_de': '2-Minuten-Umfrage im Town-Hall-Tab.',
+                         'time': 'now', 'read': False})
     return jsonify(notes)
 
 SETTINGS_SECTIONS = [
-    {'title': 'Accessibility', 'items': [
-        {'key': 'big', 'label': 'Large text & buttons (glove mode)', 'type': 'big'},
+    {'title': 'Accessibility', 'title_de': 'Barrierefreiheit', 'items': [
+        {'key': 'big', 'label': 'Large text & buttons (glove mode)', 'label_de': 'Große Schrift & Tasten (Handschuh-Modus)', 'type': 'big'},
     ]},
-    {'title': 'Privacy · Zero-Log Shield', 'items': [
-        {'key': 'anon', 'label': 'Always post anonymously', 'type': 'toggle', 'default': True, 'locked': True},
-        {'key': 'nolog', 'label': 'No IP address or device data recorded', 'type': 'toggle', 'default': True, 'locked': True},
-        {'key': 'strip_meta', 'label': 'Remove photo location data', 'type': 'toggle', 'default': True, 'locked': True},
+    {'title': 'Privacy · Zero-Log Shield', 'title_de': 'Datenschutz · Zero-Log-Schutz', 'items': [
+        {'key': 'anon', 'label': 'Always post anonymously', 'label_de': 'Immer anonym posten', 'type': 'toggle', 'default': True, 'locked': True},
+        {'key': 'nolog', 'label': 'No IP address or device data recorded', 'label_de': 'Keine IP-Adresse und keine Gerätedaten gespeichert',
+         'type': 'toggle', 'default': True, 'locked': True},
+        {'key': 'strip_meta', 'label': 'Remove photo location data', 'label_de': 'Standortdaten aus Fotos entfernen',
+         'type': 'toggle', 'default': True, 'locked': True},
     ]},
-    {'title': 'Language', 'items': [
-        {'key': 'language', 'label': 'Show posts in', 'type': 'language'},
-        {'key': 'show_original', 'label': 'Show original text under translation', 'type': 'toggle', 'default': False},
+    {'title': 'Language', 'title_de': 'Sprache', 'items': [
+        {'key': 'language', 'label': 'Show posts in', 'label_de': 'Beiträge anzeigen auf', 'type': 'language'},
+        {'key': 'show_original', 'label': 'Show original text under translation', 'label_de': 'Originaltext unter der Übersetzung zeigen',
+         'type': 'toggle', 'default': False},
     ]},
-    {'title': 'Notifications', 'items': [
-        {'key': 'broadcast_notif', 'label': 'Company broadcasts', 'type': 'toggle', 'default': True},
-        {'key': 'sound_notif', 'label': 'Message sounds', 'type': 'toggle', 'default': False},
+    {'title': 'Notifications', 'title_de': 'Benachrichtigungen', 'items': [
+        {'key': 'broadcast_notif', 'label': 'Company broadcasts', 'label_de': 'Mitteilungen des Produktteams', 'type': 'toggle', 'default': True},
+        {'key': 'sound_notif', 'label': 'Message sounds', 'label_de': 'Töne bei Nachrichten', 'type': 'toggle', 'default': False},
     ]},
 ]
 
@@ -1406,6 +1556,7 @@ def handle_caption(data):
         return
     lang, en, de, engine = translate_fields(text)
     emit('caption', {'speaker': current_user.public_name, 'role_label': current_user.role_label,
+                     'k': cam_key(current_user.id), 'cam': current_user.id in cam_ids(),
                      'lang': lang, 'en': en, 'de': de, 'final': bool(data.get('final', True)),
                      'time': datetime.now().strftime('%H:%M')}, broadcast=True)
 

@@ -146,6 +146,11 @@ SEED_QUICK = [
     ('anon_s3', 3, ['estop_reach'], 1, 'Hall 3 · Final assembly', None, None),
 ]
 
+# Which of the zone's three fixed spots a seeded post is about (see plant_map.py); posts not listed are about the
+# whole zone or have no location.
+SEED_POST_SPOTS = {0: 1, 2: 2, 4: 1}
+SEED_QUICK_SPOTS = {0: 1, 1: 2, 2: 2, 3: 2, 6: 1, 9: 1, 10: 3, 11: 1}
+
 QUICK_SUPPORT = {
     0: ['anon_s4', 'anon_s6'],
     1: ['anon_s1', 'anon_s3', 'anon_s7', 'safety'],
@@ -173,8 +178,8 @@ AGREEMENT_PARAMS = [
      [{'v': 'yes', 'en': 'Yes', 'de': 'Ja'}, {'v': 'no', 'en': 'No', 'de': 'Nein'}]),
     ('reskilling', 'Reskilling plan presented to the works council by',
      'Umschulungsplan dem Betriebsrat vorgelegt bis', 'choice', 'cp2', '', '', None, None, None,
-     [{'v': 'cp1', 'en': 'Checkpoint 1', 'de': 'Checkpoint 1'},
-      {'v': 'cp2', 'en': 'Checkpoint 2', 'de': 'Checkpoint 2'},
+     [{'v': 'cp1', 'en': 'Checkpoint 1', 'de': 'Prüftermin 1'},
+      {'v': 'cp2', 'en': 'Checkpoint 2', 'de': 'Prüftermin 2'},
       {'v': 'end', 'en': 'End of trial', 'de': 'Testende'}]),
 ]
 
@@ -199,6 +204,15 @@ PULSES = {
              'anon_s7': 2, 'anon_s8': 3, 'union': 2, 'safety': 3, 'director2': 4},
 }
 PULSE_USERNAMES = {'director2': 'anon_director2'}
+# Demo votes on the agreement terms: (term, user, vote, proposed value, reason).
+AGREEMENT_VOTES = [
+    ('speed_cap', 'anon_s1', 'not_yet', '30', ''), ('speed_cap', 'anon_s2', 'not_yet', '30', ''),
+    ('speed_cap', 'anon_s5', 'not_yet', '30', ''), ('speed_cap', 'safety', 'not_yet', '40', ''),
+    ('speed_cap', 'director2', 'ok', '', ''),
+    ('trial_days', 'anon_s7', 'not_yet', '', 'info'), ('trial_days', 'union', 'ok', '', ''),
+    ('lanes', 'anon_s3', 'ok', '', ''), ('lanes', 'union', 'ok', '', ''),
+    ('reskilling', 'union', 'not_yet', 'cp1', ''), ('reskilling', 'anon_s4', 'not_yet', 'cp1', ''),
+]
 
 TOWN_HALL_DE = {'title_de': 'AMR-Einführung · Werk Stuttgart', 'when_de': 'Do., 23. Okt. · 16:00 MESZ / 11:00 Halifax'}
 
@@ -270,6 +284,10 @@ def seed_demo(get_db, create_user, translate_fields, now_str):
                            (ids[author], text_de or '', 'de', text_en or '', text_de or '', 'seed',
                             QUICK_THEMES[tags[0]], zone, now_str(mins), json.dumps(tags), feeling))
         quick_ids.append(cur.lastrowid)
+    for idx, spot in SEED_POST_SPOTS.items():
+        conn.execute('UPDATE posts SET spot = ? WHERE id = ?', (spot, post_ids[idx]))
+    for idx, spot in SEED_QUICK_SPOTS.items():
+        conn.execute('UPDATE posts SET spot = ? WHERE id = ?', (spot, quick_ids[idx]))
     for idx, users in QUICK_SUPPORT.items():
         for u in users:
             conn.execute('INSERT OR IGNORE INTO post_support (post_id, user_id, created_at) VALUES (?,?,?)',
@@ -313,6 +331,13 @@ def seed_demo(get_db, create_user, translate_fields, now_str):
         for u, v in answers.items():
             conn.execute('INSERT INTO pulses (user_id, phase, value, updated_at) VALUES (?,?,?,?)',
                          (ids[u], phase, v, now_str(20 if phase == 'live' else 600)))
+    # The agreement terms: a few "works for me" votes, and "not yet" votes that say what would work instead.
+    pids = {r['key']: r['id'] for r in conn.execute('SELECT id, key FROM agreement_params').fetchall()}
+    for key, user, vote, value, reason in AGREEMENT_VOTES:
+        conn.execute('INSERT OR REPLACE INTO param_votes (param_id, user_id, vote) VALUES (?,?,?)', (pids[key], ids[user], vote))
+        if vote == 'not_yet':
+            conn.execute('INSERT OR REPLACE INTO param_proposals (param_id, user_id, value, reason, created_at) VALUES (?,?,?,?,?)',
+                         (pids[key], ids[user], value, reason, now_str(5)))
     for theme, t, status in ACTIONS:
         conn.execute('INSERT INTO actions (theme, title, title_de, owner, owner_de, due, due_de, status, created_at) '
                      'VALUES (?,?,?,?,?,?,?,?,?)',

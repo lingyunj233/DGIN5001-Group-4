@@ -10,7 +10,7 @@ var state = {
   contacts: [], rooms: [], activeChat: null, currentRoom: null, messages: [], selectedMsg: null,
   media: null, pendingVoice: false
 };
-var quick = { tags: [], sentiment: null, zone: '', voice: '' };
+var quick = { tags: [], sentiment: null, zone: '', spot: 0, voice: '' };
 var composerMode = ME.isOrganizer ? 'write' : 'quick';
 
 var TX = {
@@ -222,6 +222,10 @@ function applyI18n() {
     el.textContent = tx(el.getAttribute('data-i18n'));
   });
   document.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.placeholder = tx(el.getAttribute('data-i18n-ph')); });
+  document.querySelectorAll('[data-i18n-title]').forEach(function (el) { el.title = tx(el.getAttribute('data-i18n-title')); });
+  document.querySelectorAll('[data-i18n-aria]').forEach(function (el) { el.setAttribute('aria-label', tx(el.getAttribute('data-i18n-aria'))); });
+  if ($('topName')) $('topName').textContent = personName({ name: ME.name, role: ME.role });
+  fillSelects();
   if ($('capMicLabel')) setCapUI(!!capOn);
 }
 function themeKeys() { return Object.keys(THEMES).filter(function (k) { return k !== 'other'; }).concat(['other']); }
@@ -361,7 +365,8 @@ function setLanguage(l) {
   applyI18n();
   renderFeed(); renderMessages(); renderInsightsPanel(); if (state.th) renderTownHall();
   renderThemeFilter(); renderComposerLabels(); renderQuick(); renderContacts();
-  loadSettings();
+  if (state.th) updatePhaseUI();
+  loadSettings(); loadNotifications();
 }
 
 function loadFeed() {
@@ -369,10 +374,8 @@ function loadFeed() {
   return api(q).then(function (d) { state.feed = d; renderFeed(); });
 }
 function setSort(s) {
-  state.sort = s;
-  $('tabLatest').classList.toggle('active', s === 'latest');
-  $('tabTop').classList.toggle('active', s === 'top');
-  loadFeed();
+  state.sort = s; state.feedView = 'list';
+  syncTabs(); loadFeed();
 }
 function setThemeFilter(t) {
   state.theme = (state.theme === t ? '' : t);
@@ -427,13 +430,13 @@ function postHTML(p) {
   }
   // In the simple view a quick-report tile already says what the post is about, so the theme tag would repeat it.
   var showTheme = !(SIMPLE && p.tags && p.tags.length);
-  var tags = (showTheme ? themeTag(p) : '') + (p.zone ? '<span class="tag tag-zone">' + ICON.place + esc(p.zone) + '</span>' : '');
+  var tags = (showTheme ? themeTag(p) : '') + zoneTag(p);
   var canDel = p.is_mine || ME.isOrganizer;
   var actions = p.is_broadcast ? '' :
     '<div class="post-actions">' +
-      '<button class="act-btn" onclick="toggleThread(' + p.id + ')" title="Reply">' + ICON.reply + (p.comments || '') + '</button>' +
-      '<button class="act-btn metoo' + (p.supported ? ' on' : '') + '" onclick="toggleSupport(' + p.id + ')" title="Me too">' + ICON.heart + esc(tx('metoo')) + (p.support ? ' · ' + p.support : '') + '</button>' +
-      '<span class="post-score" title="Role-weighted priority">' + ICON.bars + p.score + '</span>' +
+      '<button class="act-btn" onclick="toggleThread(' + p.id + ')" title="' + esc(tx('tReply')) + '">' + ICON.reply + (p.comments || '') + '</button>' +
+      '<button class="act-btn metoo' + (p.supported ? ' on' : '') + '" onclick="toggleSupport(' + p.id + ')" title="' + esc(tx('tMeToo')) + '">' + ICON.heart + esc(tx('metoo')) + (p.support ? ' · ' + p.support : '') + '</button>' +
+      '<span class="post-score" title="' + esc(tx('tScore')) + '">' + ICON.bars + p.score + '</span>' +
     '</div>' +
     '<div class="thread' + (state.openThreads[p.id] ? ' open' : '') + '" id="thread-' + p.id + '"></div>';
   return '<div class="post" id="post-' + p.id + '">' +
@@ -441,7 +444,7 @@ function postHTML(p) {
     '<div class="post-main">' +
       '<div class="post-head"><span class="post-name">' + esc(personName(a)) + '</span>' + roleBadge(a) +
         '<span class="post-handle">' + esc(a.handle) + '</span><span class="post-time">· ' + esc(p.time) + '</span>' +
-        (canDel ? '<button class="post-del" title="Delete" onclick="deletePost(' + p.id + ')">' + ICON.trash + '</button>' : '') +
+        (canDel ? '<button class="post-del" title="' + esc(tx('tDelete')) + '" onclick="deletePost(' + p.id + ')">' + ICON.trash + '</button>' : '') +
       '</div>' +
       quickChips(p) +
       (p.content ? textBlock(p, 'post-body') : '') + media +
@@ -457,10 +460,18 @@ function renderFeed() {
     return '<div class="broadcast' + (SIMPLE ? ' clamp" data-more="' + esc(tx('readMore')) + '" onclick="this.classList.remove(\'clamp\')' : '') + '">' +
       '<div class="broadcast-label">' + ICON.pin + esc(tx('pinned')) + '</div>' + postHTML(p) + '</div>';
   }).join('');
-  $('broadcastList').innerHTML = state.theme ? '' : b;
-  var posts = state.feed.posts;
+  var map = state.feedView === 'map', posts = state.feed.posts;
+  $('broadcastList').innerHTML = (state.theme || map) ? '' : b;
+  if (map) {
+    // Map tab: only posts with a place, filtered by the area / spot picked on the map.
+    var located = posts.filter(function (p) { return p.zone && PZ[p.zone]; });
+    $('mapCard').innerHTML = '<div class="map-card">' + mapCardHTML(located) + '</div>';
+    posts = located.filter(inMapFilter);
+  } else {
+    $('mapCard').innerHTML = '';
+  }
   $('feedList').innerHTML = posts.length ? posts.map(postHTML).join('') :
-    '<div class="feed-empty">' + esc(tx('feedEmpty')) + '</div>';
+    '<div class="feed-empty">' + esc(tx(map ? (state.mapZone ? 'mapNone' : 'mapNoLoc') : 'feedEmpty')) + '</div>';
   Object.keys(state.openThreads).forEach(function (id) { if (state.openThreads[id]) loadThread(id); });
 }
 function toggleSupport(id) {
@@ -471,7 +482,7 @@ function toggleSupport(id) {
 }
 function deletePost(id) {
   if (!confirm('Delete this post?')) return;
-  api('/api/posts/' + id, undefined, 'DELETE').then(function () { toast('Post deleted'); });
+  api('/api/posts/' + id, undefined, 'DELETE').then(function () { toast(tx('tDeleted')); });
 }
 function toggleThread(id) {
   state.openThreads[id] = !state.openThreads[id];
@@ -533,7 +544,7 @@ function onMediaPicked(input) {
       '<button class="media-remove" onclick="clearMedia()">×</button>';
     pv.classList.add('show');
     if (isImg) toast(state.lang === 'de' ? 'Standortdaten im Foto entfernt' : 'Photo location data removed');
-  }).catch(function () { setUploading(false); toast('Upload failed'); });
+  }).catch(function () { setUploading(false); toast(tx('tUploadFail')); });
 }
 function setUploading(on) {
   ['postBtn', 'quickSend'].forEach(function (id) { if ($(id)) $(id).disabled = on; });
@@ -554,7 +565,7 @@ function stripImageMetadata(file) {
 function clearMedia() { state.media = null; $('mediaPreview').innerHTML = ''; $('mediaPreview').classList.remove('show'); }
 function submitPost() {
   var input = $('composerInput'), text = input.value.trim();
-  if (!text && !state.media) { toast('Write something or add a photo'); return; }
+  if (!text && !state.media) { toast(tx('tNeedText')); return; }
   var body = { content: text, theme: $('themeSelect').value, zone: $('zoneSelect').value,
     media_url: state.media && state.media.url, media_type: state.media && state.media.type,
     broadcast: $('broadcastCheck') ? $('broadcastCheck').checked : false };
@@ -580,6 +591,7 @@ function renderComposerLabels() {
     $('postingAs').innerHTML = esc(tx('postingAs')) + ' <b>' + esc(name) + '</b>';
   }
   if ($('quickSend')) $('quickSend').textContent = tx('send');
+  if ($('sheetTitle')) $('sheetTitle').textContent = tx(composerMode === 'quick' ? 'ctaQuick' : 'sheetWrite');
   if (!ME.isOrganizer && $('composerInput')) $('composerInput').placeholder = tx('writePh');
 }
 function setComposerMode(m) {
@@ -617,9 +629,6 @@ function renderQuick() {
     return '<button class="qtag' + (on ? ' on' : '') + '" style="--tc:' + themeColor(t.theme) + ';--tf:' + themeFill(t.theme) + '" aria-pressed="' + on + '" onclick="toggleQuickTag(\'' + k + '\')">' +
       '<span class="qi">' + t.icon + '</span><span class="ql">' + esc(tagLabel(k)) + '</span>' + (on ? '<span class="qcheck">✓</span>' : '') + '</button>';
   }).join('');
-  var zones = ZONES.map(function (z, i) {
-    return '<button class="zchip' + (quick.zone === z ? ' on' : '') + '" onclick="pickZone(' + i + ')">' + ICON.place + esc(z) + '</button>';
-  }).join('');
   el.innerHTML =
     '<div class="qstep"><b>1</b>' + esc(tx('step1')) + '<small>' + esc(tx('step1h')) + '</small></div>' +
     '<div class="qtag-grid">' + tiles + '</div>' +
@@ -628,7 +637,7 @@ function renderQuick() {
       '<button class="big-photo" onclick="$(\'mediaInput\').click()">' + ICON.camera + '<span>' + esc(tx('photo')) + '</span></button></div>' +
     '<textarea class="qvoice-text' + (quick.voice ? ' has' : '') + '" id="qVoiceText" rows="2" placeholder="' + esc(tx('voicePh')) + '" oninput="quick.voice=this.value;this.classList.toggle(\'has\',!!this.value)">' + esc(quick.voice) + '</textarea>' +
     '<div class="qstep"><b>3</b>' + esc(tx('step3')) + '</div>' + feelHTML() +
-    '<div class="qstep"><b>4</b>' + esc(tx('step4')) + '</div><div class="zone-chips">' + zones + '</div>';
+    '<div class="qstep"><b>4</b>' + esc(tx('step4')) + '</div><div class="pmap-step">' + quickMapHTML() + '</div>';
   renderComposerLabels();
 }
 function feelHTML() {
@@ -653,7 +662,6 @@ function toggleQuickTag(k) {
   if (navigator.vibrate) navigator.vibrate(15);
   renderQuick();
 }
-function pickZone(i) { quick.zone = quick.zone === ZONES[i] ? '' : ZONES[i]; renderQuick(); }
 function speechLangCode() { return state.lang === 'de' ? 'de-DE' : 'en-US'; }
 function speechError(code) {
   if (code === 'not-allowed' || code === 'service-not-allowed') return tx('micBlocked');
@@ -687,10 +695,10 @@ function submitQuick() {
   if (!quick.tags.length && !voice && !state.media) { toast(tx('needOne')); return; }
   if (qRecOn && qRec) qRec.stop();
   var btn = $('quickSend'); btn.disabled = true; btn.textContent = tx('sending');
-  api('/api/posts', { tags: quick.tags, sentiment: quick.sentiment, zone: quick.zone, content: voice,
+  api('/api/posts', { tags: quick.tags, sentiment: quick.sentiment, zone: quick.zone, spot: quick.spot || null, content: voice,
     media_url: state.media && state.media.url, media_type: state.media && state.media.type })
     .then(function () {
-      quick = { tags: [], sentiment: null, zone: '', voice: '' };
+      quick = { tags: [], sentiment: null, zone: '', spot: 0, voice: '' };
       clearMedia(); renderQuick(); btn.disabled = false; closeReport(); showSent();
       if (state.sort !== 'latest') setSort('latest'); else loadFeed();
     })
@@ -847,14 +855,14 @@ function renderContacts() {
     }).join('');
   }
   if (chats.length) html += '<div class="list-label">' + esc(tx('chatDirect')) + '</div>' + chats.map(contactHTML).join('');
-  $('chatsList').innerHTML = html || '<div class="feed-empty">No matches</div>';
+  $('chatsList').innerHTML = html || '<div class="feed-empty">' + esc(tx('noMatches')) + '</div>';
 }
 function contactHTML(c) {
   var active = state.activeChat && state.activeChat.type === c.type && state.activeChat.target_id === c.target_id;
   var dot = c.type === 'chat' ? '<span class="status-dot ' + (c.status || 'offline') + '"></span>' : '';
   return '<div class="contact-item' + (active ? ' active' : '') + '" onclick="selectChat(\'' + c.type + '\',' + c.target_id + ')">' +
     '<div class="avatar contact-avatar' + (c.type === 'group' ? ' group' : '') + '" style="background:' + esc(c.color) + '">' + esc(c.initials) + dot + '</div>' +
-    '<div class="contact-info"><div class="contact-name">' + esc(c.name) + '</div><div class="contact-preview">' + esc(c.preview || (c.role_label || '')) + '</div></div>' +
+    '<div class="contact-info"><div class="contact-name">' + esc(contactName(c)) + '</div><div class="contact-preview">' + esc(contactPreview(c)) + '</div></div>' +
     '<span class="contact-time">' + esc(c.time || '') + '</span></div>';
 }
 function filterContacts(v) { contactFilter.q = v; renderContacts(); }
@@ -896,7 +904,7 @@ function closeChatMobile() { document.body.classList.remove('chat-open'); }
 function renderMessages() {
   if (!state.activeChat) return;
   var el = $('chatMessages');
-  el.innerHTML = state.messages.length ? '' : '<div class="empty-chat">No messages yet. Say hallo!</div>';
+  el.innerHTML = state.messages.length ? '' : '<div class="empty-chat">' + esc(tx('chatNoMsg')) + '</div>';
   state.messages.forEach(appendMessage);
 }
 function appendMessage(m) {
@@ -921,7 +929,7 @@ function appendMessage(m) {
   el.scrollTop = el.scrollHeight;
 }
 function sendMessage() {
-  if (!state.activeChat) { toast('Pick a chat or room first'); return; }
+  if (!state.activeChat) { toast(tx('tPickChat')); return; }
   var input = $('chatInput'), text = input.value.trim(); if (!text) return;
   var cid = 'c' + Date.now();
   socket.emit('send_message', { content: text, chat_type: state.activeChat.type, target_id: state.activeChat.target_id,
@@ -953,12 +961,12 @@ function setRecUI(on) {
   isRecording = on;
   $('voiceBtn').classList.toggle('recording', on);
   $('voiceWaveform').classList.toggle('on', on);
-  $('voiceStatus').textContent = on ? 'Listening…' : 'Mic speaks';
+  $('voiceStatus').textContent = tx(on ? 'micListening' : 'micIdle');
   $('voiceStatus').style.color = on ? 'var(--red)' : '';
 }
 
 function startCall(type) {
-  if (!state.activeChat || state.activeChat.type !== 'chat') { toast('Calls work in direct chats'); return; }
+  if (!state.activeChat || state.activeChat.type !== 'chat') { toast(tx('tCallsDirect')); return; }
   socket.emit('call_user', { target_id: state.activeChat.target_id, call_type: type });
   showVideoOverlay();
 }
@@ -1031,10 +1039,17 @@ function renderNowBanner() {
       : '<span class="now-hint">' + esc(tx('nowHint')) + '</span>');
 }
 function setFocus(key) {
-  api('/api/townhall/focus', { theme: key }).then(function () { if (key) toast('Discussing now: ' + themeLabel(key)); }).catch(function (e) { toast(e.message); });
+  api('/api/townhall/focus', { theme: key }).then(function () { if (key) toast(tx('tDiscussing') + themeLabel(key)); }).catch(function (e) { toast(e.message); });
+}
+// The score formula, written out (shown to everyone under the top concerns, and to Priya under her Focus Cards).
+function weightFormula() {
+  return tx('weightNote') + ' ' + ['line_worker', 'safety_officer', 'union_rep', 'director', 'organizer'].filter(function (k) { return ROLES[k]; }).map(function (k) {
+    return (state.lang === 'de' ? ROLES[k].label_de.replace('\u00ad', '') : ROLES[k].label) + ' ' + ROLES[k].weight.toFixed(1).replace('.', state.lang === 'de' ? ',' : '.') + '×';
+  }).join(' · ');
 }
 function renderFocus() {
   var el = $('focusCards'); if (!el) return;
+  if ($('focusWeight')) $('focusWeight').textContent = weightFormula();
   var th = state.th, cards = th.cards || [];
   $('globalPrompts').innerHTML = (th.prompts || []).map(function (p) {
     return '<div class="gprompt">' + ICON.spark + '<span>' + esc(p) + '</span></div>';
@@ -1048,7 +1063,7 @@ function renderFocus() {
       return '<div class="fact">' + statusPill(a.status) + esc(a.title) + ' <small>✓' + a.agree + ' · ✋' + a.not_yet + '</small></div>';
     }).join('');
     return '<div class="fcard' + (c.is_focus ? ' focus' : '') + '" style="--tc:' + c.color + '">' +
-      '<div class="fhead"><span class="frank">' + (i + 1) + '</span><span class="ftitle">' + esc(c.label) + '</span><span class="fscore" title="Role-weighted priority">' + c.score + '</span></div>' +
+      '<div class="fhead"><span class="frank">' + (i + 1) + '</span><span class="ftitle">' + esc(c.label) + '</span><span class="fscore" title="' + esc(tx('tScore')) + '">' + c.score + '</span></div>' +
       '<div class="fstats"><span class="fstat">' + c.posts + ' reports</span><span class="fstat">' + c.support + ' me too</span>' +
         '<span class="fstat">' + c.line_share + '% line workers</span>' + feel + (c.recent ? '<span class="fstat rise">↑ ' + c.recent + ' new in 15 min</span>' : '') + '</div>' +
       '<div class="fsum"><span class="fsum-tag">' + (c.summary_engine === 'llm' ? 'AI summary' : 'Summary') + '</span>' + esc(c.summary_text) + '</div>' +
@@ -1094,7 +1109,8 @@ function renderAgreement() {
     var votes = a.locked ? '<span class="ag-tally">✓ ' + p.ok + ' · ✋ ' + p.not_yet + '</span>' :
       '<div class="ag-votes"><button class="vote-btn agree' + (p.my_vote === 'ok' ? ' on' : '') + '" onclick="voteParam(' + p.id + ',\'ok\')">✓ ' + esc(tx('agWorks')) + ' ' + p.ok + '</button>' +
       '<button class="vote-btn not_yet' + (p.my_vote === 'not_yet' ? ' on' : '') + '" onclick="voteParam(' + p.id + ',\'not_yet\')">✋ ' + esc(tx('agNotYet')) + ' ' + p.not_yet + '</button></div>';
-    return '<div class="ag-row"><div class="ag-label">' + esc(label) + '<small>' + esc(other) + '</small></div><div class="ag-value">' + ctl + '</div>' + votes + '</div>';
+    return '<div class="ag-row"><div class="ag-label">' + esc(label) + '<small>' + esc(other) + '</small></div><div class="ag-value">' + ctl + '</div>' + votes +
+      (a.locked ? '' : proposeHTML(p, editable)) + '</div>';
   }).join('');
   var signers = a.signers.map(function (s) {
     return '<div class="signer' + (s.signed ? ' done' : '') + '"><span class="sig-check">' + (s.signed ? '✓' : '') + '</span><div><b>' + esc(de ? s.label_de : s.label) + '</b><small>' +
@@ -1117,7 +1133,68 @@ function stepParam(id, dir) {
   var v = Math.max(p.min, Math.min(p.max, parseFloat(p.value) + dir * p.step));
   if (String(v) !== String(p.value)) setParam(id, v);
 }
-function voteParam(id, v) { api('/api/agreement/params/' + id + '/vote', { vote: v }).catch(function (e) { toast(e.message); }); }
+function voteParam(id, v) {
+  // "Not yet" opens a small drawer under the term: what would work for you instead?
+  if (v === 'not_yet') propOpen[id] = true; else delete propOpen[id];
+  api('/api/agreement/params/' + id + '/vote', { vote: v }).catch(function (e) { toast(e.message); });
+}
+
+// ---- Propose a change after "Not yet" -------------------------------------------------------------------------
+var propOpen = {}, propDraft = {};
+var TX_PROP = {
+  en: { apQ: 'What would work for you?', apSend: 'Send suggestion', apInfo: 'I need more information first', apInfoShort: 'more information',
+        apMine: 'Your suggestion', apChange: 'change', apSum: 'Suggestions', apUse: 'use', apSent: 'Suggestion sent – thank you',
+        apUsed: 'Value changed – everyone votes again' },
+  de: { apQ: 'Was wäre für dich ok?', apSend: 'Vorschlag senden', apInfo: 'Ich brauche erst mehr Infos', apInfoShort: 'mehr Infos',
+        apMine: 'Dein Vorschlag', apChange: 'ändern', apSum: 'Vorschläge', apUse: 'übernehmen', apSent: 'Vorschlag gesendet – danke',
+        apUsed: 'Wert geändert – alle stimmen neu ab' }
+};
+Object.keys(TX_PROP).forEach(function (l) { Object.keys(TX_PROP[l]).forEach(function (k) { TX[l][k] = TX_PROP[l][k]; }); });
+function propLabel(p, x) { return state.lang === 'de' ? x.display_de : x.display; }
+function proposeHTML(p, editable) {
+  var de = state.lang === 'de', out = '';
+  // Everyone sees the suggestions; the Product Team can take one over with one tap.
+  var chips = (p.proposals || []).map(function (x) {
+    var t = esc(propLabel(p, x)) + ' <b>×' + x.n + '</b>';
+    return editable ? '<button class="ap-chip use" onclick="useProposal(' + p.id + ',\'' + esc(x.value) + '\')">' + t + ' · ' + esc(tx('apUse')) + '</button>'
+      : '<span class="ap-chip">' + t + '</span>';
+  }).join('') + (p.info ? '<span class="ap-chip">' + esc(tx('apInfoShort')) + ' <b>×' + p.info + '</b></span>' : '');
+  if (chips) out += '<div class="ap-sum"><span>' + esc(tx('apSum')) + ':</span>' + chips + '</div>';
+  if (ME.isOrganizer || p.my_vote !== 'not_yet') return out;
+  var mine = p.my_proposal;
+  if (mine && !propOpen[p.id]) {
+    var shown = mine.reason === 'info' ? tx('apInfo') : (p.proposals.filter(function (x) { return x.value === mine.value; })[0] || {});
+    return out + '<div class="ap-mine">' + esc(tx('apMine')) + ': <b>' + esc(typeof shown === 'string' ? shown : propLabel(p, shown)) + '</b> · ' +
+      '<button class="ap-link" onclick="propOpen[' + p.id + ']=true;renderAgreement()">' + esc(tx('apChange')) + '</button></div>';
+  }
+  var body;
+  if (p.kind === 'number') {
+    var v = propDraft[p.id] != null ? propDraft[p.id] : parseFloat(p.value);
+    var unit = de ? p.unit_de : p.unit;
+    body = '<div class="ap-row"><div class="ap-stepper"><button class="step-btn" onclick="propStep(' + p.id + ',-1)" aria-label="−">−</button>' +
+      '<span class="ag-val">' + esc(v + (unit ? ' ' + unit : '')) + '</span>' +
+      '<button class="step-btn" onclick="propStep(' + p.id + ',1)" aria-label="+">+</button></div>' +
+      '<button class="btn-primary ap-send" onclick="sendProposal(' + p.id + ',' + v + ')"' + (String(v) === String(parseFloat(p.value)) ? ' disabled' : '') + '>' + esc(tx('apSend')) + '</button></div>';
+  } else {
+    body = '<div class="ap-row">' + p.options.filter(function (o) { return o.v !== p.value; }).map(function (o) {
+      return '<button class="ap-opt" onclick="sendProposal(' + p.id + ',\'' + esc(o.v) + '\')">' + esc(de ? o.de : o.en) + '</button>';
+    }).join('') + '</div>';
+  }
+  return out + '<div class="ag-propose"><div class="ap-q">' + esc(tx('apQ')) + '</div>' + body +
+    '<button class="ap-info" onclick="sendProposal(' + p.id + ',null,\'info\')">' + esc(tx('apInfo')) + '</button></div>';
+}
+function propStep(id, dir) {
+  var p = state.th.agreement.params.filter(function (x) { return x.id === id; })[0]; if (!p) return;
+  var v = propDraft[id] != null ? propDraft[id] : parseFloat(p.value);
+  propDraft[id] = Math.max(p.min, Math.min(p.max, v + dir * p.step));
+  renderAgreement();
+}
+function sendProposal(id, value, reason) {
+  api('/api/agreement/params/' + id + '/propose', reason ? { reason: reason } : { value: value }).then(function () {
+    delete propOpen[id]; delete propDraft[id]; toast(tx('apSent'));
+  }).catch(function (e) { toast(e.message); });
+}
+function useProposal(id, value) { setParam(id, value); toast(tx('apUsed')); }
 function signAgreement() {
   if (!confirm(tx('agConfirm'))) return;
   api('/api/agreement/sign', {}).then(function (d) { toast(d.locked ? tx('agLocked') : tx('agYouSigned')); }).catch(function (e) { toast(e.message); });
@@ -1129,7 +1206,7 @@ function updatePhaseUI() {
   $('thMiniTitle').textContent = de ? th.title_de : th.title; $('thMiniWhen').textContent = de ? th.when_de : th.when;
   var pill = $('thMiniPhase');
   pill.className = 'phase-pill' + (th.phase === 'live' ? ' live' : th.phase === 'after' ? ' after' : '');
-  pill.textContent = th.phase === 'live' ? '● Live now' : th.phase === 'after' ? 'Finished · survey open' : 'Collecting concerns';
+  pill.textContent = tx(th.phase === 'live' ? 'pillLive' : th.phase === 'after' ? 'pillAfter' : 'pillBefore');
 }
 function renderTownHall() {
   var th = state.th; if (!th) return;
@@ -1146,6 +1223,7 @@ function renderTownHall() {
   // Body classes drive which Town Hall cards the simple view shows in each phase (see app.css).
   var bc = document.body.classList;
   bc.remove('ph-before', 'ph-live', 'ph-after'); bc.add('ph-' + th.phase);
+  renderStage();
   // The live box sits on top in every phase: before the meeting it says when it starts.
   var capEmpty = document.querySelector('#captions .cap-empty');
   if (capEmpty) capEmpty.textContent = th.phase === 'before' ? tx('capBefore').replace('{when}', de ? th.when_de : th.when)
@@ -1171,13 +1249,10 @@ function renderTownHall() {
         '<div class="concern-meta">' + esc(concernSummary(t)) + '</div>' +
         '<div class="concern-quote">“' + esc(quote) + '”</div>' +
       '</div>';
-    }).join('') || '<div class="feed-empty">No concerns posted yet.</div>';
-    var roleOrder = ['line_worker', 'safety_officer', 'union_rep', 'director'].filter(function (k) { return ROLES[k]; });
+    }).join('') || '<div class="feed-empty">' + esc(tx('noConcerns')) + '</div>';
     $('roleLegend').innerHTML = groupLegend();
     // The weighting is public: say exactly how the score is made.
-    if ($('weightNote')) $('weightNote').textContent = tx('weightNote') + ' ' + roleOrder.map(function (k) {
-      return (state.lang === 'de' ? ROLES[k].label_de.replace('\u00ad', '') : ROLES[k].label) + ' ' + ROLES[k].weight.toFixed(1).replace('.', state.lang === 'de' ? ',' : '.') + '×';
-    }).join(' · ');
+    if ($('weightNote')) $('weightNote').textContent = weightFormula();
   }
   renderShowAll();
 
@@ -1248,10 +1323,10 @@ function createPoll() {
   var q = $('pollQ').value.trim(), opts = $('pollOpts').value.split('\n');
   api('/api/townhall/poll', { question: q, options: opts, question_de: $('pollQDe').value.trim(), options_de: $('pollOptsDe').value.split('\n') }).then(function () {
     ['pollQ', 'pollOpts', 'pollQDe', 'pollOptsDe'].forEach(function (i) { $(i).value = ''; });
-    $('pollTemplate').value = ''; $('pollForm').classList.remove('show'); toast('Poll is live');
+    $('pollTemplate').value = ''; $('pollForm').classList.remove('show'); toast(tx('tPollLive'));
   }).catch(function (e) { toast(e.message); });
 }
-function closePoll() { api('/api/townhall/poll/close', {}).then(function () { toast('Poll closed'); }); }
+function closePoll() { api('/api/townhall/poll/close', {}).then(function () { toast(tx('tPollClosed')); }); }
 var pulseEdit = false;
 function fmtAvg(x) { var t = Number(x).toFixed(1); return state.lang === 'de' ? t.replace('.', ',') : t; }
 // Comfort pulse, asked again in every phase. Participants see the room only after they have answered
@@ -1370,7 +1445,7 @@ function addAction() {
     title_de: $('actTitleDe').value, owner_de: $('actOwnerDe').value, due_de: $('actDueDe').value })
     .then(function () {
       ['actTitle', 'actOwner', 'actDue', 'actTitleDe', 'actOwnerDe', 'actDueDe'].forEach(function (i) { $(i).value = ''; });
-      $('actTemplate').value = ''; toast('Action added to the charter');
+      $('actTemplate').value = ''; toast(tx('tActionAdded'));
     })
     .catch(function (e) { toast(e.message); });
 }
@@ -1424,7 +1499,7 @@ function submitSurvey() {
   api('/api/survey', { heard: surveyDraft.heard, plan: surveyDraft.plan, comment: ($('surveyComment') || {}).value || '' })
     .then(function () { toast(tx('thanksFb')); loadTownHall(); });
 }
-function setPhase(p) { api('/api/townhall/phase', { phase: p }).then(function () { toast('Phase: ' + p); }); }
+function setPhase(p) { api('/api/townhall/phase', { phase: p }).then(function () { toast(tx('tPhase') + p); }); }
 
 var capRec = null, capOn = false, capInterimEl = null;
 function toggleCaptions() {
@@ -1463,6 +1538,7 @@ function addCaption(d) {
   div.innerHTML = '<div class="cap-who">' + esc(who) + ' · ' + esc(d.time) + ' · ' + esc(tx(d.lang === 'de' ? 'spokeDe' : 'spokeEn')) + '</div>' +
     '<div class="cap-main">' + esc(main) + '</div>' + (alt !== main ? '<div class="cap-alt">' + esc(alt) + '</div>' : '');
   if (capInterimEl) box.insertBefore(div, capInterimEl); else box.appendChild(div);
+  stageCaption(d, who + ' · ' + d.time + ' · ' + tx(d.lang === 'de' ? 'spokeDe' : 'spokeEn'), main);
   while (box.querySelectorAll('.cap:not(.interim)').length > 12) box.querySelector('.cap:not(.interim)').remove();
   box.scrollTop = box.scrollHeight;
 }
@@ -1479,23 +1555,25 @@ function loadNotifications() {
     $('notifBadge').style.display = list.some(function (n) { return !n.read; }) ? 'block' : 'none';
     $('notifBody').innerHTML = list.map(function (n) {
       return '<div class="notif-item' + (n.read ? '' : ' unread') + '" onclick="this.classList.remove(\'unread\')"><div class="notif-dot' + (n.read ? ' read' : '') + '"></div>' +
-        '<div><div class="notif-title">' + esc(n.title) + '</div><div class="notif-text">' + esc(n.text) + '</div></div></div>';
+        '<div><div class="notif-title">' + esc(state.lang === 'de' && n.title_de || n.title) + '</div>' +
+        '<div class="notif-text">' + esc(state.lang === 'de' && n.text_de || n.text) + '</div></div></div>';
     }).join('');
   });
 }
 function loadSettings() {
   api('/api/settings').then(function (sections) {
     $('settingsBody').innerHTML = sections.map(function (sec) {
-      return '<div class="settings-section"><div class="settings-section-title">' + esc(sec.title) + '</div>' + sec.items.map(function (it) {
+      var de = state.lang === 'de';
+      return '<div class="settings-section"><div class="settings-section-title">' + esc(de && sec.title_de || sec.title) + '</div>' + sec.items.map(function (it) {
         var ctl;
         if (it.type === 'language') {
           ctl = '<div class="lang-switch" style="display:flex"><button class="' + (state.lang === 'de' ? 'active' : '') + '" onclick="setLanguage(\'de\')">Deutsch</button><button class="' + (state.lang === 'en' ? 'active' : '') + '" onclick="setLanguage(\'en\')">English</button></div>';
         } else if (it.type === 'big') {
           ctl = '<label class="toggle-switch"><input type="checkbox"' + (document.body.classList.contains('big') ? ' checked' : '') + ' onchange="toggleBig(this.checked)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>';
         } else {
-          ctl = '<label class="toggle-switch' + (it.locked ? ' locked' : '') + '" title="' + (it.locked ? 'Always on for privacy' : '') + '"><input type="checkbox"' + (it.default ? ' checked' : '') + (it.locked ? ' disabled' : '') + '><div class="toggle-track"></div><div class="toggle-thumb"></div></label>';
+          ctl = '<label class="toggle-switch' + (it.locked ? ' locked' : '') + '" title="' + (it.locked ? esc(tx('lockedPriv')) : '') + '"><input type="checkbox"' + (it.default ? ' checked' : '') + (it.locked ? ' disabled' : '') + '><div class="toggle-track"></div><div class="toggle-thumb"></div></label>';
         }
-        return '<div class="settings-row"><span class="settings-label">' + esc(it.label) + '</span>' + ctl + '</div>';
+        return '<div class="settings-row"><span class="settings-label">' + esc(de && it.label_de || it.label) + '</span>' + ctl + '</div>';
       }).join('') + '</div>';
     }).join('') + (ME.isOrganizer ? '' : '<div class="settings-section"><div class="settings-section-title">' + esc(tx('layoutTitle')) + '</div>' +
       '<div class="layout-switch">' + ['auto', 'simple', 'full'].map(function (v) {
@@ -1519,6 +1597,372 @@ function setLayout(v) {
   applyLayout(); loadSettings();
 }
 
+// ---- Plant map -------------------------------------------------------------------------------------------
+// Two levels (plant_map.py): five zones, three fixed, numbered spots per zone. Used in step 4 of the report form
+// and in the Map tab of the Square. Only a zone or a numbered spot can be picked, never an exact point, so
+// reports from the same place add up and nobody can be located precisely. Neutral colours: colour means theme.
+var PLANT = BOOT.plant, PZ = {};
+PLANT.zones.forEach(function (z, i) { z.i = i; PZ[z.key] = z; });
+state.feedView = 'list'; state.mapZone = ''; state.mapSpot = 0;
+var TX_MAP = {
+  en: {
+    tabMap: 'Map', mapTitle: 'Where are the problems?', mapHint: 'Tap an area to see the reports from there.',
+    mapPick: 'Optional. Tap the area where it happened.', mapAll: 'All areas', mapReports: 'reports', mapReport: 'report',
+    mapWhole: 'Whole area / not sure exactly', mapWholeShort: 'Whole area', mapEvery: 'All',
+    mapNone: 'No reports from here yet.', mapNoLoc: 'No reports with a location yet.'
+  },
+  de: {
+    tabMap: 'Karte', mapTitle: 'Wo gibt es Probleme?', mapHint: 'Tippe auf einen Bereich, um die Meldungen von dort zu sehen.',
+    mapPick: 'Optional. Tippe auf den Bereich, wo es passiert ist.', mapAll: 'Alle Bereiche', mapReports: 'Meldungen', mapReport: 'Meldung',
+    mapWhole: 'Ganzer Bereich / weiß nicht genau', mapWholeShort: 'Ganzer Bereich', mapEvery: 'Alle',
+    mapNone: 'Von hier gibt es noch keine Meldungen.', mapNoLoc: 'Noch keine Meldungen mit Ort.'
+  }
+};
+Object.keys(TX_MAP).forEach(function (l) { Object.keys(TX_MAP[l]).forEach(function (k) { TX[l][k] = TX_MAP[l][k]; }); });
+
+var PM_DEFS = '<defs><pattern id="pm-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+  '<line x1="0" y1="0" x2="0" y2="8" stroke="#DCE4EA" stroke-width="4"/></pattern>' +
+  '<pattern id="pm-hatchn" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+  '<line x1="0" y1="0" x2="0" y2="7" stroke="#C9D8E4" stroke-width="3"/></pattern></defs>';
+function pmL(o) { return o ? (o[state.lang] || o.en) : ''; }
+function zoneName(key) { var z = PZ[key]; return z ? pmL(z.short) : key; }
+function spotName(key, n) { var s = PLANT.spots[key] && PLANT.spots[key][n - 1]; return s ? (state.lang === 'de' ? s.de : s.en) : ''; }
+function nReports(n) { return n + ' ' + tx(n === 1 ? 'mapReport' : 'mapReports'); }
+// Clickable SVG parts work with a mouse, a finger and the keyboard (Tab, then Enter or Space).
+function pmAct(fn, arg) {
+  return ' role="button" tabindex="0" onclick="' + fn + '(' + arg + ')" ' +
+    'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + fn + '(' + arg + ')}"';
+}
+
+// Level 1: the whole plant. With counts it becomes the concern map (number, darker = more reports, theme squares).
+function mapOverview(fn, counts, themes) {
+  var mx = 1;
+  if (counts) Object.keys(counts).forEach(function (k) { mx = Math.max(mx, counts[k]); });
+  var o = '<svg class="pm-svg" viewBox="0 0 360 300" font-family="DM Sans, Inter, Arial, sans-serif">' + PM_DEFS +
+    '<rect width="360" height="300" rx="10" fill="#EEF3F6"/>' +
+    '<path d="M14 116 H346" stroke="#0B3C5D" stroke-width="2" stroke-dasharray="6 4" fill="none" opacity=".7"/>';
+  PLANT.zones.forEach(function (z) {
+    var r = z.rect, x = r[0], y = r[1], w = r[2], h = r[3], cx = x + w / 2, cy = y + h / 2;
+    var n = counts ? (counts[z.key] || 0) : 0;
+    o += '<g class="pm-zone"' + pmAct(fn, z.i) + ' aria-label="' + esc(pmL(z.title) + ' · ' + pmL(z.sub) + (counts ? ', ' + nReports(n) : '')) + '">' +
+      '<rect class="pm-bg" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8" fill="#FFFFFF" stroke="#AFC0CC" stroke-width="1.5"/>';
+    if (n) o += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8" fill="#0B3C5D" opacity="' + (0.05 + 0.2 * n / mx).toFixed(2) + '"/>';
+    o += '<text x="' + cx + '" y="' + (cy - 2) + '" text-anchor="middle" font-size="16" font-weight="700" fill="#0F2233">' + esc(pmL(z.title)) + '</text>' +
+      '<text x="' + cx + '" y="' + (cy + 15) + '" text-anchor="middle" font-size="11" fill="#6B8194">' + esc(pmL(z.sub)) + '</text>';
+    if (n) {
+      o += '<circle cx="' + (x + w - 16) + '" cy="' + (y + 16) + '" r="11" fill="#0B3C5D"/>' +
+        '<text x="' + (x + w - 16) + '" y="' + (y + 20) + '" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">' + n + '</text>';
+      var ts = (themes && themes[z.key]) || [];
+      ts.forEach(function (t, i) {
+        o += '<rect x="' + (cx - ts.length * 7 + i * 14 + 2) + '" y="' + (cy + 26) + '" width="10" height="10" rx="3" fill="' + themeColor(t) + '"/>';
+      });
+    } else {
+      o += '<path d="M' + (x + w - 18) + ' ' + (y + 12) + ' l5 5 l-5 5" stroke="#9FB0BD" stroke-width="2" fill="none" stroke-linecap="round"/>';
+    }
+    o += '</g>';
+  });
+  return o + '</svg>';
+}
+// Level 2: one zone and its three numbered spots. With counts: the number of reports per spot.
+function mapDetail(key, fn, selected, counts) {
+  var o = '<svg class="pm-svg" viewBox="0 0 360 240" font-family="DM Sans, Inter, Arial, sans-serif">' + PM_DEFS +
+    '<rect x="6" y="6" width="348" height="228" rx="8" fill="#FFFFFF" stroke="#AFC0CC" stroke-width="1.5"/>' +
+    ((PLANT.inside[key] || {})[state.lang === 'de' ? 'de' : 'en'] || '');
+  (PLANT.spots[key] || []).forEach(function (s, i) {
+    var n = i + 1, on = selected === n, c = counts ? (counts[n] || 0) : 0, dim = counts && !c && !on;
+    o += '<g class="pm-spot"' + pmAct(fn, n) + ' aria-label="' + esc(n + ' ' + spotName(key, n) + (counts ? ', ' + nReports(c) : '')) + '">';
+    if (c) o += '<circle cx="' + s.x + '" cy="' + s.y + '" r="' + Math.min(16 + 5 * c, 30) + '" fill="#0B3C5D" opacity=".16"/>';
+    if (on) o += '<circle cx="' + s.x + '" cy="' + s.y + '" r="22" fill="#0B3C5D" opacity=".18"/>';
+    o += '<circle class="pm-ring" cx="' + s.x + '" cy="' + s.y + '" r="14" fill="' + (on ? '#0B3C5D' : '#FFFFFF') + '" stroke="' + (dim ? '#9FB0BD' : '#0B3C5D') + '" stroke-width="2.5"/>' +
+      '<text x="' + s.x + '" y="' + (s.y + 5) + '" text-anchor="middle" font-size="14" font-weight="800" fill="' + (on ? '#FFFFFF' : dim ? '#9FB0BD' : '#0B3C5D') + '">' + n + '</text>';
+    if (c) o += '<circle cx="' + (s.x + 14) + '" cy="' + (s.y - 14) + '" r="10" fill="#0F2233" stroke="#FFFFFF" stroke-width="2"/>' +
+      '<text x="' + (s.x + 14) + '" y="' + (s.y - 10) + '" text-anchor="middle" font-size="12" font-weight="800" fill="#FFFFFF">' + c + '</text>';
+    o += '</g>';
+  });
+  return o + '</svg>';
+}
+
+// Report form, step 4: pick an area, then (optionally) one of its three spots.
+function quickMapHTML() {
+  var key = quick.zone;
+  if (!key || !PZ[key]) return '<div class="pmap">' + mapOverview('qPickZone') + '</div><div class="pmap-hint">' + esc(tx('mapPick')) + '</div>';
+  var rows = (PLANT.spots[key] || []).map(function (s, i) {
+    var n = i + 1, on = quick.spot === n;
+    return '<button class="spot-btn' + (on ? ' on' : '') + '" aria-pressed="' + on + '" onclick="qPickSpot(' + n + ')"><span class="sn">' + n + '</span>' + esc(spotName(key, n)) + '</button>';
+  }).join('') +
+    '<button class="spot-btn whole' + (quick.spot ? '' : ' on') + '" aria-pressed="' + !quick.spot + '" onclick="qPickSpot(0)"><span class="sn">·</span>' + esc(tx('mapWhole')) + '</button>';
+  return '<div class="pmap-head"><button class="pmap-back" onclick="qPickZone(-1)">‹ ' + esc(tx('mapAll')) + '</button><b>' + esc(zoneName(key)) + '</b></div>' +
+    '<div class="pmap">' + mapDetail(key, 'qPickSpot', quick.spot) + '</div><div class="spot-list">' + rows + '</div>';
+}
+function qPickZone(i) {
+  quick.zone = i < 0 ? '' : PLANT.zones[i].key; quick.spot = 0; renderQuick();
+  var el = document.querySelector('#quickBody .pmap-step'); if (el) el.scrollIntoView({ block: 'nearest' });
+}
+function qPickSpot(n) { quick.spot = n; renderQuick(); }
+
+// Square, Map tab: the concern map for everyone. Tap an area, then a spot, to filter the posts below.
+function syncTabs() {
+  var map = state.feedView === 'map';
+  $('tabLatest').classList.toggle('active', !map && state.sort === 'latest');
+  $('tabTop').classList.toggle('active', !map && state.sort === 'top');
+  $('tabMap').classList.toggle('active', map);
+}
+function setFeedView(v) {
+  state.feedView = v; syncTabs(); renderFeed();
+  if (v === 'map' && $('feedScroll')) $('feedScroll').scrollTop = 0;
+}
+function feedPickZone(i) { state.mapZone = i < 0 ? '' : PLANT.zones[i].key; state.mapSpot = 0; renderFeed(); }
+function feedPickSpot(n) { state.mapSpot = (state.mapSpot === n ? 0 : n); renderFeed(); }   // -1 = whole area only
+function openOnMap(i, n) { state.mapZone = PLANT.zones[i].key; state.mapSpot = n || 0; setFeedView('map'); }
+function mapCardHTML(located) {
+  if (!state.mapZone) {
+    var counts = {}, th = {}, themes = {};
+    located.forEach(function (p) {
+      counts[p.zone] = (counts[p.zone] || 0) + 1;
+      th[p.zone] = th[p.zone] || {}; th[p.zone][p.theme] = (th[p.zone][p.theme] || 0) + 1;
+    });
+    Object.keys(th).forEach(function (k) {
+      themes[k] = Object.keys(th[k]).filter(function (t) { return t !== 'other'; })
+        .sort(function (a, b) { return th[k][b] - th[k][a]; }).slice(0, 3);
+    });
+    return '<div class="map-title"><b>' + esc(tx('mapTitle')) + '</b><span>' + esc(nReports(located.length)) + '</span></div>' +
+      '<div class="pmap">' + mapOverview('feedPickZone', counts, themes) + '</div><div class="pmap-hint">' + esc(tx('mapHint')) + '</div>';
+  }
+  var key = state.mapZone, inZone = located.filter(function (p) { return p.zone === key; }), sc = {}, whole = 0;
+  inZone.forEach(function (p) { if (p.spot) sc[p.spot] = (sc[p.spot] || 0) + 1; else whole++; });
+  function chip(val, inner, n) {
+    return '<button class="spot-chip' + (state.mapSpot === val ? ' on' : '') + '" onclick="feedPickSpot(' + val + ')">' + inner + '<small>' + n + '</small></button>';
+  }
+  var chips = chip(0, esc(tx('mapEvery')), inZone.length) +
+    (PLANT.spots[key] || []).map(function (s, i) { return chip(i + 1, '<span class="sn">' + (i + 1) + '</span>' + esc(spotName(key, i + 1)), sc[i + 1] || 0); }).join('') +
+    chip(-1, esc(tx('mapWholeShort')), whole);
+  return '<div class="pmap-head"><button class="pmap-back" onclick="feedPickZone(-1)">‹ ' + esc(tx('mapAll')) + '</button><b>' + esc(zoneName(key)) + '</b>' +
+    '<span class="n">' + esc(nReports(inZone.length)) + '</span></div>' +
+    '<div class="pmap">' + mapDetail(key, 'feedPickSpot', state.mapSpot > 0 ? state.mapSpot : 0, sc) + '</div><div class="spot-chips">' + chips + '</div>';
+}
+function inMapFilter(p) {
+  if (!state.mapZone) return true;
+  if (p.zone !== state.mapZone) return false;
+  return !state.mapSpot || (state.mapSpot < 0 ? !p.spot : p.spot === state.mapSpot);
+}
+// The place on a post: area + spot. Tapping it opens the map at that place.
+function zoneTag(p) {
+  if (!p.zone) return '';
+  var z = PZ[p.zone];
+  if (!z) return '<span class="tag tag-zone">' + ICON.place + esc(p.zone) + '</span>';
+  return '<button class="tag tag-zone" onclick="openOnMap(' + z.i + ',' + (p.spot || 0) + ')">' + ICON.place + esc(zoneName(p.zone)) +
+    (p.spot ? ' · <span class="sn">' + p.spot + '</span>' + esc(spotName(p.zone, p.spot)) : '') + '</button>';
+}
+
+// ---- Camera and shared slides (demo) ---------------------------------------------------------------------------
+// No video is recorded or sent: grey placeholders show where faces (or slides) would be. Rules:
+// shared slides > the person speaking > captions only. The camera is off by default and asks first.
+// Phones and most screens show only the person speaking (in the dark live box); the Product Team also gets a strip
+// of everyone with the camera on. Nobody else gets a gallery of who switched the camera on.
+var TX_CAM = {
+  en: {
+    camBtn: 'Camera', camOnBtn: 'Camera on', camSheetT: 'Turn on your camera?', camPreview: 'Preview',
+    camP1: '<b>Everyone in the meeting sees your face.</b>',
+    camP2: 'Your reports, votes and reactions stay <b>anonymous</b> and are not linked to your video.',
+    camP3: '<b>Nothing is recorded</b>, no face recognition.', camP4: 'You can turn the camera off at any time.',
+    camDemo: 'Demo: no real video is sent, only a grey placeholder.', camYes: 'Turn camera on', camNo: 'Not now',
+    camOnTile: 'Camera on', camYou: 'you', camSpeaking: 'speaking', stageWait: 'The person speaking appears here.',
+    slidesBy: 'Slides from', youShare: 'You are sharing slides', shareStart: 'Share slides (demo)', shareStop: 'Stop sharing',
+    fsOpen: 'Full screen', fsClose: 'Close'
+  },
+  de: {
+    camBtn: 'Kamera', camOnBtn: 'Kamera an', camSheetT: 'Kamera einschalten?', camPreview: 'Vorschau',
+    camP1: '<b>Alle im Meeting sehen dein Gesicht.</b>',
+    camP2: 'Deine Meldungen, Stimmen und Reaktionen bleiben <b>anonym</b> und werden nicht mit deinem Video verknüpft.',
+    camP3: '<b>Nichts wird aufgezeichnet</b>, keine Gesichtserkennung.', camP4: 'Du kannst die Kamera jederzeit wieder ausschalten.',
+    camDemo: 'Demo: Es wird kein echtes Video übertragen, nur ein grauer Platzhalter.', camYes: 'Kamera einschalten', camNo: 'Lieber nicht',
+    camOnTile: 'Kamera an', camYou: 'du', camSpeaking: 'spricht', stageWait: 'Hier erscheint, wer gerade spricht.',
+    slidesBy: 'Folien von', youShare: 'Du teilst Folien', shareStart: 'Folien zeigen (Demo)', shareStop: 'Teilen beenden',
+    fsOpen: 'Vollbild', fsClose: 'Schließen'
+  }
+};
+Object.keys(TX_CAM).forEach(function (l) { Object.keys(TX_CAM[l]).forEach(function (k) { TX[l][k] = TX_CAM[l][k]; }); });
+
+var DEMO_SLIDES = [
+  { k: ['Town Hall · AMR rollout', 'Town Hall · AMR-Rollout'], t: ['Today’s agenda', 'Agenda für heute'],
+    li: [['Safety in Hall 4', 'Jobs & reskilling', 'Data & works agreement', 'Action charter'],
+         ['Sicherheit in Halle 4', 'Arbeitsplätze & Umschulung', 'Daten & Betriebsvereinbarung', 'Maßnahmenplan']] },
+  { k: ['AMR rollout · Hall 4', 'AMR-Rollout · Halle 4'], t: ['What changes before the restart', 'Was sich vor dem Neustart ändert'],
+    li: [['Marked AMR lanes', 'Test week at half speed', 'Stop after every near miss'],
+         ['Markierte AMR-Spuren', 'Testwoche mit halber Geschwindigkeit', 'Stopp nach jedem Beinahe-Unfall']] },
+  { k: ['Next steps', 'Nächste Schritte'], t: ['What happens after today', 'Was nach heute passiert'],
+    li: [['We agree the action charter today', 'The works council checks the data list', '2-minute survey after the Town Hall'],
+         ['Heute legen wir den Maßnahmenplan fest', 'Der Betriebsrat prüft die Datenliste', '2-Minuten-Umfrage nach dem Town Hall']] }
+];
+var PERSON_SVG = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="24" r="12" fill="#CFDCE6"/><path d="M10 60c2-14 11-21 22-21s20 7 22 21z" fill="#CFDCE6"/></svg>';
+var MIC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></svg>';
+var FULL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>';
+state.lastCap = null;
+var stageTimer = null, slideFsOpen = false;
+
+function liveCams() { var th = state.th; return th && th.phase === 'live' ? (th.cams || []) : []; }
+function camOf(k) { return liveCams().filter(function (c) { return c.k === k; })[0] || null; }
+function myCam() { return (state.th && state.th.cams || []).some(function (c) { return c.me; }); }
+function camLabel(c, short) {
+  var l = c.kind === 'organizer' ? c.name + (short ? '' : ' · ' + groupLabel('organizer')) : c.kind === 'director' ? groupLabel('director') : (short ? '' : tx('camOnTile'));
+  return c.me ? (l ? l + ' (' + tx('camYou') + ')' : tx('camYou')) : l;
+}
+function isSpeaking(k) { var c = state.lastCap; return !!(c && c.k === k && Date.now() - c.at < 10000); }
+function slideHTML(i) {
+  var s = DEMO_SLIDES[i] || DEMO_SLIDES[0], l = state.lang === 'de' ? 1 : 0;
+  return '<div class="demo-slide"><div class="k">' + esc(s.k[l]) + '</div><div class="t">' + esc(s.t[l]) + '</div><ul>' +
+    s.li[l].map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul><div class="sbar"></div></div>';
+}
+function speakerThumb() {
+  var c = state.lastCap; if (!c) return '';
+  return camOf(c.k) ? '<div class="thumb">' + PERSON_SVG + '</div>' : '<div class="thumb nocam">' + MIC_SVG + '</div>';
+}
+function capText() {
+  var c = state.lastCap;
+  return c ? '<div class="cap-who">' + esc(c.who) + '</div><div class="cap-main">' + esc(c.main) + '</div>'
+    : '<div class="cap-main dim">' + esc(tx('stageWait')) + '</div>';
+}
+
+function renderStage() {
+  var th = state.th, stage = $('stage'); if (!th || !stage) return;
+  var live = th.phase === 'live', cams = liveCams(), share = live && th.share != null;
+  var org = ME.isOrganizer;
+  // The camera button: off = outline, on = filled with a green dot and a tiny self-view.
+  var on = myCam(), b = $('camBtn');
+  if (b) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); $('camLabel').textContent = tx(on ? 'camOnBtn' : 'camBtn'); }
+  if ($('shareBtn')) { $('shareBtn').classList.toggle('on', share); $('shareLabel').textContent = tx(share ? 'shareStop' : 'shareStart'); }
+  // The Product Team's strip: everyone with the camera on; the person speaking gets a green frame.
+  $('camStrip').innerHTML = org && cams.length ? cams.map(function (c) {
+    return '<div class="cam-tile' + (isSpeaking(c.k) ? ' speaking' : '') + '">' + PERSON_SVG + '<span class="cam-name">' + esc(camLabel(c)) + '</span></div>';
+  }).join('') : '';
+  var mode = share ? 'share' : (!org && cams.length ? 'speaker' : '');
+  document.body.classList.toggle('stage-on', !!mode);
+  stage.className = 'stage' + (mode ? ' ' + mode : '');
+  if (mode === 'share') {
+    var n = th.share, tag = org ? tx('youShare') : tx('slidesBy') + ' ' + (th.share_by || '');
+    var btns = org
+      ? '<button onclick="setShare(' + (n - 1) + ')"' + (n ? '' : ' disabled') + ' aria-label="‹">‹</button>' +
+        '<button onclick="setShare(' + (n + 1) + ')"' + (n < DEMO_SLIDES.length - 1 ? '' : ' disabled') + ' aria-label="›">›</button>' +
+        '<button onclick="setShare(null)">' + esc(tx('shareStop')) + '</button>'
+      : '<button onclick="openSlideFs()" aria-label="' + esc(tx('fsOpen')) + '">' + FULL_SVG + '</button>';
+    stage.innerHTML = '<div class="slide-wrap">' + slideHTML(n) + '<div class="slide-tag">' + esc(tag) + ' · ' + (n + 1) + '/' + DEMO_SLIDES.length + '</div>' +
+      '<div class="slide-btns">' + btns + '</div></div><div class="bar">' + speakerThumb() + '<div class="txt">' + capText() + '</div></div>';
+  } else if (mode === 'speaker') {
+    var c = state.lastCap, cam = c && camOf(c.k);
+    var tagTxt = cam ? [camLabel(cam, true), tx('camSpeaking')].filter(Boolean).join(' · ') : tx('camSpeaking');
+    stage.innerHTML = (cam ? '<div class="vid">' + PERSON_SVG + '</div>' : '<div class="nocam">' + MIC_SVG + '</div>') +
+      (c ? '<div class="tagl"><i></i>' + esc(tagTxt) + '</div><div class="over">' + capText() + '</div>'
+         : '<div class="wait">' + esc(tx('stageWait')) + '</div>');
+  } else {
+    stage.innerHTML = '';
+  }
+  if (slideFsOpen) { if (share) renderSlideFs(); else closeSlideFs(); }
+}
+// Called for every caption: the person speaking moves into the live box.
+function stageCaption(d, who, main) {
+  state.lastCap = { k: d.k, who: who, main: main, at: Date.now() };
+  renderStage();
+  clearTimeout(stageTimer); stageTimer = setTimeout(renderStage, 10500);   // the green "speaking" frame fades
+}
+
+// Camera button. Turning it on asks first (the Product Team just toggles); turning it off never asks.
+function toggleCamera() {
+  if (myCam()) { setCamera(false); return; }
+  if (ME.isOrganizer) { setCamera(true); return; }
+  $('camSheetTitle').textContent = tx('camSheetT');
+  $('camPrevLabel').textContent = tx('camPreview');
+  $('camPoints').innerHTML = ['camP1', 'camP2', 'camP3', 'camP4'].map(function (k) { return '<li>' + tx(k) + '</li>'; }).join('');
+  $('camDemo').textContent = tx('camDemo');
+  $('camYes').textContent = tx('camYes'); $('camNo').textContent = tx('camNo');
+  $('camSheet').classList.add('open');
+  $('camYes').focus();
+}
+function closeCamSheet() { $('camSheet').classList.remove('open'); }
+function setCamera(on) {
+  closeCamSheet();
+  api('/api/townhall/camera', { on: on }).then(loadTownHall).catch(function (e) { toast(e.message); });
+}
+// Demo slides (Product Team only).
+function toggleShare() { setShare(state.th && state.th.share != null ? null : 0); }
+function setShare(n) { api('/api/townhall/share', { slide: n }).then(loadTownHall).catch(function (e) { toast(e.message); }); }
+// Full screen on a phone: slides on one side, the person speaking and the captions on the other.
+function openSlideFs() { slideFsOpen = true; renderSlideFs(); }
+function renderSlideFs() {
+  var el = $('slideFs');
+  if (!el) { el = document.createElement('div'); el.id = 'slideFs'; el.className = 'slide-fs'; el.setAttribute('role', 'dialog'); document.body.appendChild(el); }
+  el.innerHTML = '<div class="fs-slide">' + slideHTML(state.th.share) + '</div><div class="fs-side">' +
+    '<button class="fs-close" onclick="closeSlideFs()" aria-label="' + esc(tx('fsClose')) + '">✕</button>' +
+    (state.lastCap ? speakerThumb() : '') + '<div class="txt">' + capText() + '</div></div>';
+}
+function closeSlideFs() { slideFsOpen = false; var el = $('slideFs'); if (el) el.remove(); }
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  if ($('camSheet') && $('camSheet').classList.contains('open')) closeCamSheet();
+  if (slideFsOpen) closeSlideFs();
+});
+
+// ---- More German: the remaining labels, tooltips, toasts and side panels ----------------------------------------
+var TX_MORE = {
+  en: {
+    tRead: 'Read posts in', tBig: 'Large text & buttons (glove mode)', tNotif: 'Notifications', tSettings: 'Settings', signOutLc: 'sign out',
+    sbUpcoming: 'Upcoming Town Hall', sbThemes: 'Concern themes', sbInvite: 'Invite coworkers',
+    sbScan: 'Scan with any phone camera — no app, no e-mail, no name.', tZeroLog: 'What is recorded?',
+    tAddPhoto: 'Add photo or video', tDictate: 'Speak instead of typing', tTheme: 'Theme', tWhere: 'Where in the plant?',
+    themeAuto: 'Theme: auto-detect', locOpt: 'Location (optional)', postBtn: 'Post',
+    tVoiceCall: 'Voice call', tVideoCall: 'Video call', tSend: 'Send', micIdle: 'Mic speaks', micListening: 'Listening…',
+    chatEmptyT: 'Talk or type — in German or English.',
+    chatEmptyS: 'Pick a chat or breakout room on the left. Every message is translated for the other side.',
+    chatTr: 'Messages are translated DE ⇄ EN', chatNoMsg: 'No messages yet. Say hallo!', noMatches: 'No matches',
+    thTheme: 'Theme', thAction: 'Action', thStatus: 'Status', thView: 'Your view', noConcerns: 'No concerns posted yet.',
+    tDeleted: 'Post deleted', tUploadFail: 'Upload failed', tNeedText: 'Write something or add a photo',
+    tPickChat: 'Pick a chat or room first', tCallsDirect: 'Calls work in direct chats',
+    tReply: 'Reply', tMeToo: 'Me too', tDelete: 'Delete', tScore: 'Role-weighted priority',
+    pillLive: '● Live now', pillAfter: 'Finished · survey open', pillBefore: 'Collecting concerns', lockedPriv: 'Always on for privacy',
+    tDiscussing: 'Discussing now: ', tPollLive: 'Poll is live', tPollClosed: 'Poll closed', tActionAdded: 'Action added to the charter', tPhase: 'Phase: '
+  },
+  de: {
+    tRead: 'Beiträge lesen auf', tBig: 'Große Schrift & Tasten (Handschuh-Modus)', tNotif: 'Benachrichtigungen', tSettings: 'Einstellungen', signOutLc: 'abmelden',
+    sbUpcoming: 'Nächstes Town Hall', sbThemes: 'Themen der Anliegen', sbInvite: 'Kolleginnen und Kollegen einladen',
+    sbScan: 'Mit jeder Handykamera scannen – keine App, keine E-Mail, kein Name.', tZeroLog: 'Was wird gespeichert?',
+    tAddPhoto: 'Foto oder Video hinzufügen', tDictate: 'Sprechen statt tippen', tTheme: 'Thema', tWhere: 'Wo im Werk?',
+    themeAuto: 'Thema: automatisch erkennen', locOpt: 'Ort (optional)', postBtn: 'Posten',
+    tVoiceCall: 'Sprachanruf', tVideoCall: 'Videoanruf', tSend: 'Senden', micIdle: 'Mikrofon bereit', micListening: 'Hört zu …',
+    chatEmptyT: 'Sprechen oder tippen – auf Deutsch oder Englisch.',
+    chatEmptyS: 'Wähle links einen Chat oder Breakout-Raum. Jede Nachricht wird für die andere Seite übersetzt.',
+    chatTr: 'Nachrichten werden übersetzt DE ⇄ EN', chatNoMsg: 'Noch keine Nachrichten. Sag Hallo!', noMatches: 'Keine Treffer',
+    thTheme: 'Thema', thAction: 'Maßnahme', thStatus: 'Status', thView: 'Deine Sicht', noConcerns: 'Noch keine Anliegen.',
+    tDeleted: 'Beitrag gelöscht', tUploadFail: 'Hochladen fehlgeschlagen', tNeedText: 'Schreib etwas oder füge ein Foto hinzu',
+    tPickChat: 'Wähle zuerst einen Chat oder Raum', tCallsDirect: 'Anrufe gehen nur in direkten Chats',
+    tReply: 'Antworten', tMeToo: 'Ich auch', tDelete: 'Löschen', tScore: 'Nach Gruppen gewichtete Priorität',
+    pillLive: '● Jetzt live', pillAfter: 'Beendet · Umfrage offen', pillBefore: 'Anliegen sammeln', lockedPriv: 'Zum Schutz immer an',
+    tDiscussing: 'Jetzt im Gespräch: ', tPollLive: 'Umfrage läuft', tPollClosed: 'Umfrage geschlossen', tActionAdded: 'Maßnahme zum Plan hinzugefügt', tPhase: 'Phase: '
+  }
+};
+Object.keys(TX_MORE).forEach(function (l) { Object.keys(TX_MORE[l]).forEach(function (k) { TX[l][k] = TX_MORE[l][k]; }); });
+// Drop-downs in the "Write" form: labels follow the language, the values stay the same.
+function fillSelects() {
+  var ts = $('themeSelect');
+  if (ts) {
+    var v = ts.value;
+    ts.innerHTML = '<option value="">' + esc(tx('themeAuto')) + '</option>' +
+      themeKeys().map(function (k) { return '<option value="' + esc(k) + '">' + esc(themeLabel(k)) + '</option>'; }).join('');
+    ts.value = v;
+  }
+  var zs = $('zoneSelect');
+  if (zs) Array.from(zs.options).forEach(function (o) { o.textContent = o.value ? zoneName(o.value) : tx('locOpt'); });
+}
+function contactName(c) {
+  if (c.type !== 'chat' || !c.role || c.role === 'organizer' || !ROLES[c.role]) return c.name;
+  return personName({ name: c.base_name, role: c.role }) + ' ' + (c.handle || '');
+}
+function contactPreview(c) {
+  if (c.type === 'group' && c.last_role) {
+    var who = ROLES[c.last_role] && c.last_role !== 'organizer' ? roleLabel({ role: c.last_role }) : (c.preview || '').split(':')[0];
+    return who + ': ' + (c.last_text || '');
+  }
+  return c.preview || (c.role ? roleLabel({ role: c.role, role_label: c.role_label }) : (c.role_label || ''));
+}
+
 (function init() {
   $('langDe').classList.toggle('active', state.lang === 'de');
   $('langEn').classList.toggle('active', state.lang === 'en');
@@ -1526,10 +1970,7 @@ function setLayout(v) {
   applyI18n();
   renderShowAll();
   renderPollTemplates();
-  $('tabLatest').classList.toggle('active', state.sort === 'latest');
-  $('tabTop').classList.toggle('active', state.sort === 'top');
-  var ts = $('themeSelect');
-  themeKeys().forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = themeLabel(k); ts.appendChild(o); });
+  syncTabs();
   try { new QRCode($('qrBox'), { text: BOOT.joinUrl, width: 128, height: 128, colorDark: '#0B3C5D', colorLight: '#ffffff' }); } catch (e) {}
   $('qrUrl').textContent = BOOT.joinUrl.replace(/^https?:\/\//, '');
   $('speechLang').value = speechLangCode(); $('capLang').value = speechLangCode();

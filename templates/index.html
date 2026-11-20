@@ -31,31 +31,31 @@
     </button>
   </div>
   <div class="topbar-spacer"></div>
-  <div class="lang-switch" title="Read posts in">
+  <div class="lang-switch" title="Read posts in" data-i18n-title="tRead">
     <button id="langDe" onclick="setLanguage('de')">DE</button>
     <button id="langEn" onclick="setLanguage('en')">EN</button>
   </div>
   <div class="topbar-actions">
-    <button class="topbar-icon-btn big-btn" id="bigBtn" title="Large text &amp; buttons (glove mode)" aria-pressed="false" onclick="toggleBig()">Aa</button>
-    <button class="topbar-icon-btn" title="Notifications" onclick="togglePanel('notif')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-badge" id="notifBadge"></span></button>
-    <button class="topbar-icon-btn" title="Settings" onclick="togglePanel('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <button class="topbar-icon-btn big-btn" id="bigBtn" title="Large text &amp; buttons (glove mode)" data-i18n-title="tBig" aria-pressed="false" onclick="toggleBig()">Aa</button>
+    <button class="topbar-icon-btn" title="Notifications" data-i18n-title="tNotif" onclick="togglePanel('notif')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-badge" id="notifBadge"></span></button>
+    <button class="topbar-icon-btn" title="Settings" data-i18n-title="tSettings" onclick="togglePanel('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   </div>
-  <a href="/logout" class="user-info" title="Sign out">
+  <a href="/logout" class="user-info" title="Sign out" data-i18n-title="signOut">
     <div class="avatar user-avatar-small" style="background:{{ user.color }}">{{ user.get_initials() }}</div>
     <div class="user-text">
-      <span class="user-name-top">{{ user.public_name }}</span>
-      <span class="user-handle-top">@{{ user.alias|lower|replace('-', '') }} · sign out</span>
+      <span class="user-name-top" id="topName">{{ user.public_name }}</span>
+      <span class="user-handle-top">@{{ user.alias|lower|replace('-', '') }} · <span data-i18n="signOutLc">sign out</span></span>
     </div>
   </a>
 </div>
 
 <div class="dropdown-overlay" id="dropdownOverlay" onclick="closeAllPanels()"></div>
 <div class="dropdown-panel" id="notifPanel">
-  <div class="dropdown-header">Notifications <button class="dropdown-close" onclick="closeAllPanels()">&times;</button></div>
+  <div class="dropdown-header"><span data-i18n="tNotif">Notifications</span> <button class="dropdown-close" onclick="closeAllPanels()" aria-label="Close" data-i18n-aria="fsClose">&times;</button></div>
   <div class="dropdown-body" id="notifBody"></div>
 </div>
 <div class="dropdown-panel settings-panel" id="settingsPanel">
-  <div class="dropdown-header">Settings <button class="dropdown-close" onclick="closeAllPanels()">&times;</button></div>
+  <div class="dropdown-header"><span data-i18n="tSettings">Settings</span> <button class="dropdown-close" onclick="closeAllPanels()" aria-label="Close" data-i18n-aria="fsClose">&times;</button></div>
   <div class="dropdown-body" id="settingsBody"></div>
 </div>
 
@@ -65,19 +65,19 @@
     <div class="left-section active" id="leftSquare">
       <div class="left-scroll">
         <div class="side-card">
-          <h4>Upcoming Town Hall</h4>
+          <h4 data-i18n="sbUpcoming">Upcoming Town Hall</h4>
           <div class="th-mini-title" id="thMiniTitle">&nbsp;</div>
           <div class="th-mini-when" id="thMiniWhen">&nbsp;</div>
           <span class="phase-pill" id="thMiniPhase">Before</span>
         </div>
         <div class="side-card" style="padding:10px;">
-          <h4 style="padding:4px 6px 0;">Concern themes</h4>
+          <h4 style="padding:4px 6px 0;" data-i18n="sbThemes">Concern themes</h4>
           <div class="theme-filter" id="themeFilter"></div>
         </div>
         <div class="side-card qr-card">
-          <h4>Invite coworkers</h4>
+          <h4 data-i18n="sbInvite">Invite coworkers</h4>
           <div class="qr-box" id="qrBox"></div>
-          <div class="qr-note">Scan with any phone camera — no app, no e-mail, no name.</div>
+          <div class="qr-note" data-i18n="sbScan">Scan with any phone camera — no app, no e-mail, no name.</div>
           <div class="qr-url" id="qrUrl"></div>
         </div>
       </div>
@@ -110,6 +110,7 @@
             <div class="feed-tabs">
               <button class="feed-tab active" id="tabLatest" onclick="setSort('latest')" data-i18n="tabLatest">Latest</button>
               <button class="feed-tab" id="tabTop" onclick="setSort('top')" data-i18n="tabTop">Top concerns</button>
+              <button class="feed-tab" id="tabMap" onclick="setFeedView('map')" data-i18n="tabMap">Map</button>
             </div>
           </div>
 
@@ -119,14 +120,14 @@
               {% if not user.is_organizer %}
               <div class="sheet-head">
                 <b id="sheetTitle">Report a problem</b>
-                <button class="sheet-close" onclick="closeReport()" aria-label="Close">&times;</button>
+                <button class="sheet-close" onclick="closeReport()" aria-label="Close" data-i18n-aria="fsClose">&times;</button>
               </div>
               {% endif %}
               <div class="composer-as">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 <span id="postingAs">Posting as <b>{{ user.public_name }}</b></span>
                 {% if not user.is_organizer %}
-                <button class="zl-badge" onclick="showZeroLog()" title="What is recorded?"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Zero-Log</button>
+                <button class="zl-badge" onclick="showZeroLog()" title="What is recorded?" data-i18n-title="tZeroLog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Zero-Log</button>
                 {% endif %}
               </div>
               <input type="file" id="mediaInput" accept="image/*,video/*" capture="environment" style="display:none" onchange="onMediaPicked(this)">
@@ -150,26 +151,27 @@
                 <div class="composer-preview" id="composerPreview"></div>
                 <div id="writeMediaSlot"><div class="media-preview" id="mediaPreview"></div></div>
                 <div class="composer-bar">
-                  <button class="icon-btn" title="Add photo or video" onclick="document.getElementById('mediaInput').click()">
+                  <button class="icon-btn" title="Add photo or video" data-i18n-title="tAddPhoto" onclick="document.getElementById('mediaInput').click()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                   </button>
-                  <button class="icon-btn" id="wMicBtn" title="Speak instead of typing" onclick="dictate('composerInput', 'wMicBtn')">
+                  <button class="icon-btn" id="wMicBtn" title="Speak instead of typing" data-i18n-title="tDictate" onclick="dictate('composerInput', 'wMicBtn')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
                   </button>
-                  <select class="mini-select" id="themeSelect" title="Theme"><option value="">Theme: auto-detect</option></select>
-                  <select class="mini-select" id="zoneSelect" title="Where in the plant?">
+                  <select class="mini-select" id="themeSelect" title="Theme" data-i18n-title="tTheme"><option value="">Theme: auto-detect</option></select>
+                  <select class="mini-select" id="zoneSelect" title="Where in the plant?" data-i18n-title="tWhere">
                     <option value="">Location (optional)</option>
-                    {% for z in zones %}<option>{{ z }}</option>{% endfor %}
+                    {% for z in zones %}<option value="{{ z }}">{{ z }}</option>{% endfor %}
                   </select>
                   {% if user.is_organizer %}
                   <label class="broadcast-check"><input type="checkbox" id="broadcastCheck"> 📌 Company broadcast</label>
                   {% endif %}
-                  <button class="btn-primary" id="postBtn" onclick="submitPost()">Post</button>
+                  <button class="btn-primary" id="postBtn" onclick="submitPost()" data-i18n="postBtn">Post</button>
                 </div>
               </div>
             </div>
           </div>
 
+          <div id="mapCard"></div>
           <div id="broadcastList"></div>
           <div id="feedList"><div class="feed-empty">Loading…</div></div>
         </div>
@@ -185,14 +187,14 @@
           <div class="chat-header-status" id="chatStatus"></div>
         </div>
         <div class="chat-actions">
-          <button class="chat-action-btn" title="Voice call" onclick="startCall('voice')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.58 2.81.7A2 2 0 0 1 22 16.92z"/></svg></button>
-          <button class="chat-action-btn video-call" title="Video call" onclick="startCall('video')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></button>
+          <button class="chat-action-btn" title="Voice call" data-i18n-title="tVoiceCall" onclick="startCall('voice')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.58 2.81.7A2 2 0 0 1 22 16.92z"/></svg></button>
+          <button class="chat-action-btn video-call" title="Video call" data-i18n-title="tVideoCall" onclick="startCall('video')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></button>
         </div>
       </div>
       <div class="chat-messages" id="chatMessages">
         <div class="empty-chat">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <div><b>Talk or type — in German or English.</b><br>Pick a chat or breakout room on the left. Every message is translated for the other side.</div>
+          <div><b data-i18n="chatEmptyT">Talk or type — in German or English.</b><br><span data-i18n="chatEmptyS">Pick a chat or breakout room on the left. Every message is translated for the other side.</span></div>
         </div>
       </div>
       <div class="video-overlay" id="videoOverlay">
@@ -213,17 +215,17 @@
         <div class="voice-row">
           <div class="input-wrapper">
             <textarea class="chat-input" id="chatInput" placeholder="Type, or tap the mic and speak…" data-i18n-ph="chatInputPh" rows="1" oninput="autoResize(this)" onkeydown="handleEnter(event)"></textarea>
-            <button class="input-send-btn" title="Send" onclick="sendMessage()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+            <button class="input-send-btn" title="Send" data-i18n-title="tSend" onclick="sendMessage()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
           </div>
-          <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()" title="Speak"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+          <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()" title="Speak" data-i18n-title="capSpeak"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
         </div>
         <div class="voice-sub">
           <div class="voice-waveform" id="voiceWaveform">
             <div class="wave-bar" style="animation-delay:0s"></div><div class="wave-bar" style="animation-delay:.1s"></div><div class="wave-bar" style="animation-delay:.2s"></div><div class="wave-bar" style="animation-delay:.3s"></div><div class="wave-bar" style="animation-delay:.15s"></div>
           </div>
-          <span id="voiceStatus">Mic speaks</span>
+          <span id="voiceStatus" data-i18n="micIdle">Mic speaks</span>
           <select class="mini-select" id="speechLang"><option value="de-DE">Deutsch</option><option value="en-US">English</option></select>
-          <span style="margin-left:auto">Messages are translated DE ⇄ EN</span>
+          <span style="margin-left:auto" data-i18n="chatTr">Messages are translated DE ⇄ EN</span>
         </div>
       </div>
     </div>
@@ -260,6 +262,7 @@
             <div class="agenda" id="agendaBar"></div>
             <div class="gprompts" id="globalPrompts"></div>
             <div class="focus-grid" id="focusCards"></div>
+            <div class="engine-note weight-note" id="focusWeight"></div>
             <div class="focus-more" id="focusMore"></div>
           </div>
           {% endif %}
@@ -272,9 +275,15 @@
               <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/></svg>
               <h3 data-i18n="capTitle">Live captions</h3><span class="sub" data-i18n="capSub">speech → text → German ⇄ English, for everyone</span>
             </div>
+            <div class="cam-strip" id="camStrip"></div>
+            <div class="stage" id="stage"></div>
             <div class="captions" id="captions"><div class="cap-empty">Captions appear here when someone speaks.</div></div>
             <div class="cap-controls">
               <button class="mic-btn" id="capMicBtn" onclick="toggleCaptions()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg><span id="capMicLabel">Speak</span></button>
+              <button class="mic-btn cam-btn" id="camBtn" onclick="toggleCamera()"><span class="cam-self"></span><span class="dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg><span id="camLabel">Camera</span></button>
+              {% if user.is_organizer %}
+              <button class="mic-btn share-btn" id="shareBtn" onclick="toggleShare()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span id="shareLabel">Share slides (demo)</span></button>
+              {% endif %}
               <select class="mini-select" id="capLang"><option value="de-DE">Deutsch</option><option value="en-US">English</option></select>
               <input id="capInput" placeholder="…or type a question / caption and press Enter" data-i18n-ph="capPh" onkeydown="if(event.key==='Enter'){sendCaption(this.value,true);this.value='';}">
             </div>
@@ -351,7 +360,7 @@
               </div>
               <div class="act-cards" id="charterCards"></div>
               <table class="charter-table">
-                <thead><tr><th style="width:150px">Theme</th><th>Action</th><th style="width:170px">Owner</th><th style="width:70px">Due</th><th style="width:100px">Status</th><th style="width:150px">Your view</th></tr></thead>
+                <thead><tr><th style="width:150px" data-i18n="thTheme">Theme</th><th data-i18n="thAction">Action</th><th style="width:170px" data-i18n="owner">Owner</th><th style="width:70px" data-i18n="due">Due</th><th style="width:100px" data-i18n="thStatus">Status</th><th style="width:150px" data-i18n="thView">Your view</th></tr></thead>
                 <tbody id="charterBody"></tbody>
               </table>
               {% if user.is_organizer %}
@@ -402,6 +411,16 @@
 </div>
 <div class="toast" id="toast"></div>
 <div class="modal" id="zlModal" onclick="if(event.target===this)this.classList.remove('show')"><div class="modal-card" id="zlCard"></div></div>
+<!-- Camera: asks first. Demo only: no video is sent, the app shows a placeholder. -->
+<div class="cam-sheet-wrap" id="camSheet" onclick="if(event.target===this)closeCamSheet()">
+  <div class="cam-sheet" role="dialog" aria-modal="true" aria-labelledby="camSheetTitle">
+    <h4 id="camSheetTitle"></h4>
+    <div class="cam-prev"><span class="cam-name" id="camPrevLabel"></span></div>
+    <ul id="camPoints"></ul>
+    <div class="cam-demo" id="camDemo"></div>
+    <div class="cam-sheet-btns"><button class="yes" id="camYes" onclick="setCamera(true)"></button><button class="no" id="camNo" onclick="closeCamSheet()"></button></div>
+  </div>
+</div>
 <div class="sent-overlay" id="sentOverlay"><div class="sent-card"><div class="sent-check">✓</div><div id="sentText"></div></div></div>
 
 <script>
@@ -422,6 +441,7 @@ window.BOOT = {
   quickOrder: {{ quick_tags.keys()|list|tojson }},
   sentiments: {{ sentiments|tojson }},
   zones: {{ zones|tojson }},
+  plant: {{ plant|tojson }},
   agenda: {{ agenda|tojson }},
   signerRoles: {{ signer_roles|tojson }},
   actionTemplates: {{ action_templates|tojson }},
