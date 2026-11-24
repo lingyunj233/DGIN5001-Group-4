@@ -268,7 +268,7 @@ function personName(p) {
   if (p.role === 'organizer' || state.lang !== 'de' || !ROLES[p.role]) return p.name;
   return 'Anonym · ' + ROLES[p.role].label_de;
 }
-function roleLabel(p) { return state.lang === 'de' && ROLES[p.role] ? ROLES[p.role].label_de : p.role_label; }
+function roleLabel(p) { return state.lang === 'de' && ROLES[p.role] ? ROLES[p.role].label_de : (p.role_label || (ROLES[p.role] ? ROLES[p.role].label : '')); }
 function avatarHTML(p, cls) {
   return '<div class="avatar ' + (cls || '') + '" style="background:' + esc(p.color) + '">' + esc(p.initials) + '</div>';
 }
